@@ -1,0 +1,123 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 260px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-lg) var(--spacing-md);
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 10;
+  transition: background-color var(--transition), border-color var(--transition);
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  padding: 0 var(--spacing-sm);
+  margin-bottom: var(--spacing-xl);
+  letter-spacing: -0.5px;
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--border-radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--transition);
+}
+
+.navLink:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.navLinkActive {
+  background: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.navLinkActive:hover {
+  background: var(--color-primary-hover);
+  color: var(--text-inverse);
+}
+
+.sidebarFooter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.themeBtn, .logoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  text-align: left;
+  width: 100%;
+}
+
+.themeBtn:hover, .logoutBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.logoutBtn:hover {
+  color: var(--color-danger);
+}
+
+.mainWrapper {
+  flex: 1;
+  margin-left: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main {
+  flex: 1;
+  padding: var(--spacing-xl);
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.footer {
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  background: var(--bg-card);
+  transition: background-color var(--transition), border-color var(--transition);
+}

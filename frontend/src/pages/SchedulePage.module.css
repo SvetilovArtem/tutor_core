@@ -1,0 +1,259 @@
+.page { display: flex; flex-direction: column; gap: var(--spacing-lg); }
+
+.header { display: flex; justify-content: space-between; align-items: center; }
+
+.title { font-size: var(--font-size-xl); font-weight: 700; letter-spacing: -0.5px; }
+
+.generateBtn {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  padding: 10px 20px; background: var(--color-primary); color: var(--text-inverse);
+  border: none; border-radius: var(--border-radius-sm); font-size: var(--font-size-md);
+  font-weight: 600; cursor: pointer; transition: background var(--transition);
+}
+.generateBtn:hover:not(:disabled) { background: var(--color-primary-hover); }
+.generateBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.tableWrapper {
+  background: var(--bg-card); border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-card); overflow-x: auto; border: 1px solid var(--border-color);
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.table { width: 100%; border-collapse: collapse; font-size: var(--font-size-md); }
+.table th {
+  text-align: left; padding: var(--spacing-md); border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary); font-weight: 600; font-size: var(--font-size-sm);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.table td { padding: var(--spacing-md); border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table tbody tr { transition: background var(--transition); }
+.table tbody tr:hover { background: var(--bg-hover); }
+
+.weekdayCell { font-weight: 600; color: var(--color-primary); }
+.timeCell { font-weight: 600; font-variant-numeric: tabular-nums; }
+.periodCell { color: var(--text-secondary); font-size: var(--font-size-sm); }
+
+.deleteBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; background: none; border: 1px solid var(--border-color);
+  color: var(--text-secondary); border-radius: var(--border-radius-sm);
+  cursor: pointer; transition: all var(--transition);
+}
+.deleteBtn:hover { border-color: var(--color-danger); color: var(--color-danger); background: rgba(239,68,68,0.08); }
+
+.empty { padding: calc(var(--spacing-xl) * 2); text-align: center; color: var(--text-muted); font-size: var(--font-size-lg); }
+
+
+/* Header actions */
+.headerActions { display: flex; gap: var(--spacing-sm); }
+
+.addBtn {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  padding: 10px 20px; background: var(--bg-card); color: var(--text-main);
+  border: 1px solid var(--border-color); border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-md); font-weight: 600; cursor: pointer;
+  transition: all var(--transition);
+}
+.addBtn:hover { background: var(--bg-hover); border-color: var(--color-primary); color: var(--color-primary); }
+
+/* Модальное окно */
+.modalOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+  animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--bg-card); padding: var(--spacing-xl); border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-modal); width: 100%; max-width: 480px;
+  display: flex; flex-direction: column; gap: var(--spacing-md);
+  border: 1px solid var(--border-color); animation: slideUp 0.2s ease;
+}
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.modalTitle { font-size: var(--font-size-lg); font-weight: 700; margin: 0; }
+.formGroup { display: flex; flex-direction: column; gap: var(--spacing-xs); }
+.formRow { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); }
+.label { font-size: var(--font-size-sm); font-weight: 500; color: var(--text-main); }
+
+.input {
+  padding: 12px 14px; border: 1px solid var(--border-color); border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-md); outline: none; font-family: inherit;
+  background: var(--bg-input); color: var(--text-main);
+  transition: border-color var(--transition), background var(--transition);
+}
+.input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+
+.modalActions { display: flex; gap: var(--spacing-sm); justify-content: flex-end; margin-top: var(--spacing-sm); }
+.cancelBtn {
+  padding: 10px 20px; background: none; border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm); cursor: pointer; font-size: var(--font-size-md);
+  color: var(--text-secondary); transition: all var(--transition);
+}
+.cancelBtn:hover { background: var(--bg-hover); color: var(--text-main); }
+.submitBtn {
+  padding: 10px 20px; background: var(--color-primary); color: var(--text-inverse);
+  border: none; border-radius: var(--border-radius-sm); font-size: var(--font-size-md);
+  font-weight: 600; cursor: pointer; transition: background var(--transition);
+}
+.submitBtn:hover:not(:disabled) { background: var(--color-primary-hover); }
+.submitBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Weekday chips */
+.weekdayGrid {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.weekdayChip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+  min-width: 48px;
+  text-align: center;
+}
+
+.weekdayChip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.weekdayChipActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.weekdayChipActive:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--text-inverse);
+}
+
+.weekdayCheckbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Divider */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: var(--spacing-xs) 0;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.dividerText {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* Dynamic blocks */
+.blocksList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: var(--spacing-xs);
+}
+
+.dayBlock {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-md);
+  transition: border-color var(--transition);
+}
+
+.dayBlock:hover {
+  border-color: var(--color-primary);
+}
+
+.dayBlockHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.dayBlockNumber {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.removeBlockBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.removeBlockBtn:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.dayBlockFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 80px;
+  gap: var(--spacing-sm);
+}
+
+.addBlockBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.addBlockBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.04);
+}

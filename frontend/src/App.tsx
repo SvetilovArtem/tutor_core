@@ -1,0 +1,38 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import Layout from './components/Layout';
+import SchedulePage from './pages/SchedulePage';
+import LessonsPage from './pages/LessonsPage';
+import PackagesPage from './pages/PackagesPage';
+
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const token = localStorage.getItem('access_token');
+  return token ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Toaster position="top-center" />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          element={
+            <PrivateRoute>
+              <Layout />
+            </PrivateRoute>
+          }
+        >
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/schedule" element={<SchedulePage />} />
+          <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/lessons" element={<LessonsPage />} />
+          {/* Следующие страницы подключим здесь */}
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

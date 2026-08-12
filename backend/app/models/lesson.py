@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import Integer, String, DateTime, Boolean, Numeric, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.session import Base
 
@@ -24,6 +24,12 @@ class Lesson(Base):
     max_students: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
+    lesson_students: Mapped[list["LessonStudent"]] = relationship(
+        back_populates="lesson",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
 
 class LessonStudent(Base):
     __tablename__ = "lesson_students"
@@ -35,3 +41,4 @@ class LessonStudent(Base):
     homework_done: Mapped[bool] = mapped_column(Boolean, default=False)
     price_charged: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     transaction_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("transactions.id"), nullable=True)
+    lesson: Mapped["Lesson"] = relationship(back_populates="lesson_students")

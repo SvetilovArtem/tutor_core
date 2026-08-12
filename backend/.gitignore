@@ -1,0 +1,24 @@
+@"
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+*.egg-info/
+
+# Environment
+.env
+*.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Alembic
+alembic/versions/__pycache__/
+"@ | Set-Content -Path ".gitignore" -Encoding UTF8

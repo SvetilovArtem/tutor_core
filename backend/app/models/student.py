@@ -1,0 +1,20 @@
+from datetime import date, datetime
+from sqlalchemy import Integer, String, Date, DateTime, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database.session import Base
+
+
+class Student(Base):
+    __tablename__ = "students"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    parent_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("parents.id", ondelete="SET NULL"), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    telegram_id: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    parent: Mapped["Parent | None"] = relationship(back_populates="students")

@@ -1,6 +1,6 @@
 from datetime import date, time, datetime
 from sqlalchemy import Integer, String, Date, Time, DateTime, Boolean, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.session import Base
 
@@ -10,7 +10,6 @@ class ScheduleRule(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tutor_id: Mapped[int] = mapped_column(Integer, ForeignKey("tutors.id"), nullable=False, index=True)
-    student_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("students.id"), nullable=True, index=True)
     group_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     weekday: Mapped[int] = mapped_column(Integer, nullable=False)  # 0=Mon .. 6=Sun
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
@@ -19,6 +18,10 @@ class ScheduleRule(Base):
     effective_from: Mapped[date] = mapped_column(Date, nullable=False)
     effective_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    students: Mapped[list["Student"]] = relationship(
+        secondary="schedule_rule_students",
+        lazy="selectin",
+    )
 
 
 class ScheduleException(Base):

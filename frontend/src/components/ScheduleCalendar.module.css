@@ -1,0 +1,128 @@
+.calendar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.monthTitle {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  text-transform: capitalize;
+  min-width: 180px;
+  text-align: center;
+}
+
+.navBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  background: none; border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm); color: var(--text-secondary);
+  cursor: pointer; transition: all var(--transition);
+}
+.navBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+.todayBtn {
+  margin-left: auto;
+  padding: 6px 16px;
+  background: none; border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm); font-size: var(--font-size-sm);
+  color: var(--text-secondary); cursor: pointer; transition: all var(--transition);
+}
+.todayBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+/* Weekday row */
+.weekdayRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.weekdayLabel {
+  padding: var(--spacing-sm);
+  text-align: center;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Days grid */
+.daysGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.dayCell {
+  min-height: 100px;
+  padding: var(--spacing-sm);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.dayCell:nth-child(7n) { border-right: none; }
+.dayCell:hover { background: var(--bg-hover); }
+
+.outsideMonth { opacity: 0.35; }
+
+.today {
+  background: rgba(99, 102, 241, 0.06);
+}
+.today .dayNumber {
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  border-radius: 50%;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.dayNumber {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-main);
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Lesson dots */
+.lessonDots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+.lessonDot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.status_scheduled { background: var(--status-scheduled-text); }
+.status_completed { background: var(--status-completed-text); }
+.status_cancelled { background: var(--status-cancelled-text); }
+
+.moreCount {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.hasLessons { }

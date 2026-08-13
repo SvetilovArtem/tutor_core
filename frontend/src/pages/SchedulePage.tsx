@@ -1,22 +1,16 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Icon from '../components/Icon';
-import api from '../api/client';
+import { scheduleApi, type ScheduleRule, type ScheduleRuleUpdate } from '../api/schedules';
 import { studentsApi, type Student } from '../api/students';
-import styles from './SchedulePage.module.css';
+import { lessonsApi, type Lesson } from '../api/lessons';
 import DateRangeField from '../components/DateRangeField';
+import ScheduleCalendar from '../components/ScheduleCalendar';
+import DayDetailModal from '../components/DayDetailModal';
+import styles from './SchedulePage.module.css';
 
-interface ScheduleRule {
-  id: number;
-  student_id: number | null;
-  group_name: string | null;
-  weekday: number;
-  start_time: string;
-  duration_minutes: number;
-  is_active: boolean;
-  effective_from: string;
-  effective_to: string | null;
-}
+const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 interface DayBlock {
   id: string;
@@ -24,8 +18,6 @@ interface DayBlock {
   time: string;
   duration: string;
 }
-
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
 const createEmptyBlock = (): DayBlock => ({
   id: crypto.randomUUID(),
@@ -37,32 +29,63 @@ const createEmptyBlock = (): DayBlock => ({
 export default function SchedulePage() {
   const [rules, setRules] = useState<ScheduleRule[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+
+  // Создание
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
-
-  // Общая часть формы
-  const [formStudentId, setFormStudentId] = useState('');
+  const [formStudentIds, setFormStudentIds] = useState<number[]>([]);
+  const [formGroupName, setFormGroupName] = useState('');
   const [formFrom, setFormFrom] = useState(new Date().toISOString().split('T')[0]);
-  const [formTo, setFormTo] = useState('');
-
-  // Динамические блоки дней
+  const [formTo, setFormTo] = useState<string | null>(null);
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([createEmptyBlock()]);
+
+  // Редактирование
+  const [editingRule, setEditingRule] = useState<ScheduleRule | null>(null);
+  const [editForm, setEditForm] = useState<{
+    weekday: number;
+    time: string;
+    duration: number;
+    student_ids: number[];
+    group_name: string;
+    effective_from: string;
+    effective_to: string | null;
+  }>({
+    weekday: 0, time: '16:00', duration: 60,
+    student_ids: [], group_name: '',
+    effective_from: '', effective_to: null,
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Календарь
+  const [selectedDay, setSelectedDay] = useState<{ date: Date; lessons: Lesson[] } | null>(null);
+
+  // Генерация уроков
+  const [showGenModal, setShowGenModal] = useState(false);
+  const [genFrom, setGenFrom] = useState(new Date().toISOString().split('T')[0]);
+  const [genTo, setGenTo] = useState<string | null>(null);
 
   const loadData = () => {
     Promise.all([
-      api.get<ScheduleRule[]>('/schedule/rules'),
+      scheduleApi.listRules(),
       studentsApi.list(),
+      lessonsApi.list(),
     ])
-      .then(([r, s]) => { setRules(r.data); setStudents(s.data); })
+      .then(([r, s, l]) => {
+        setRules(r.data);
+        setStudents(s.data);
+        setLessons(l.data);
+      })
       .catch(() => toast.error('Ошибка загрузки'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, []);
 
-  // Управление блоками
+  // ── Создание ────────────────────────────────────────────────
+
   const addBlock = () => setDayBlocks((prev) => [...prev, createEmptyBlock()]);
 
   const removeBlock = (id: string) => {
@@ -71,16 +94,21 @@ export default function SchedulePage() {
   };
 
   const updateBlock = (id: string, field: keyof DayBlock, value: string | number) => {
-    setDayBlocks((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, [field]: value } : b)),
-    );
+    setDayBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, [field]: value } : b)));
   };
 
-  const resetForm = () => {
-    setFormStudentId('');
+  const resetCreateForm = () => {
+    setFormStudentIds([]);
+    setFormGroupName('');
     setFormFrom(new Date().toISOString().split('T')[0]);
-    setFormTo('');
+    setFormTo(null);
     setDayBlocks([createEmptyBlock()]);
+  };
+
+  const toggleStudent = (id: number) => {
+    setFormStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -88,8 +116,9 @@ export default function SchedulePage() {
     setCreating(true);
     try {
       const promises = dayBlocks.map((block) =>
-        api.post('/schedule/rules', {
-          student_id: formStudentId ? Number(formStudentId) : null,
+        scheduleApi.createRule({
+          student_ids: formStudentIds,
+          group_name: formGroupName.trim() || null,
           weekday: block.weekday,
           start_time: `${block.time}:00`,
           duration_minutes: Number(block.duration),
@@ -99,8 +128,8 @@ export default function SchedulePage() {
       );
       await Promise.all(promises);
       toast.success(`Создано правил: ${dayBlocks.length}`);
-      setShowModal(false);
-      resetForm();
+      setShowCreateModal(false);
+      resetCreateForm();
       loadData();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Ошибка создания');
@@ -109,47 +138,132 @@ export default function SchedulePage() {
     }
   };
 
-  const handleGenerate = async () => {
-    setGenerating(true);
-    try {
-      const today = new Date();
-      const end = new Date(today);
-      end.setDate(end.getDate() + 30);
-      const res = await api.post('/schedule/generate', {
-        date_from: today.toISOString().split('T')[0],
-        date_to: end.toISOString().split('T')[0],
-      });
-      toast.success(`Создано уроков: ${res.data.created}`);
-    } catch { toast.error('Ошибка генерации'); }
-    finally { setGenerating(false); }
+  // ── Редактирование ──────────────────────────────────────────
+
+  const openEdit = (rule: ScheduleRule) => {
+    setEditingRule(rule);
+    setEditForm({
+      weekday: rule.weekday,
+      time: rule.start_time.slice(0, 5),
+      duration: rule.duration_minutes,
+      student_ids: rule.students.map((s) => s.id),
+      group_name: rule.group_name || '',
+      effective_from: rule.effective_from,
+      effective_to: rule.effective_to,
+    });
   };
+
+  const toggleEditStudent = (id: number) => {
+    setEditForm((f) => ({
+      ...f,
+      student_ids: f.student_ids.includes(id)
+        ? f.student_ids.filter((x) => x !== id)
+        : [...f.student_ids, id],
+    }));
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRule) return;
+    setSaving(true);
+    try {
+      const payload: ScheduleRuleUpdate = {
+        weekday: editForm.weekday,
+        start_time: `${editForm.time}:00`,
+        duration_minutes: editForm.duration,
+        student_ids: editForm.student_ids,
+        group_name: editForm.group_name.trim() || null,
+        effective_from: editForm.effective_from,
+        effective_to: editForm.effective_to,
+      };
+      await scheduleApi.updateRule(editingRule.id, payload);
+      toast.success('Правило обновлено');
+      setEditingRule(null);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка обновления');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Клик по уроку в календаре ───────────────────────────────
+
+  const navigate = useNavigate();
+  
+  const handleLessonClick = (lessonId: number) => {
+    setSelectedDay(null);
+    navigate(`/lessons?highlight=${lessonId}`);
+  };
+
+  // ── Удаление и генерация ───────────────────────────────────
 
   const handleDelete = async (id: number) => {
     if (!confirm('Удалить правило расписания?')) return;
     try {
-      await api.delete(`/schedule/rules/${id}`);
+      await scheduleApi.deleteRule(id);
       toast.success('Правило удалено');
       setRules((prev) => prev.filter((r) => r.id !== id));
-    } catch { toast.error('Ошибка удаления'); }
+    } catch {
+      toast.error('Ошибка удаления');
+    }
   };
+
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!genFrom) {
+      toast.error('Укажите дату начала');
+      return;
+    }
+    
+    const finalGenTo = genTo || (() => {
+      const d = new Date(genFrom);
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      return lastDay.toISOString().split('T')[0];
+    })();
+
+    setGenerating(true);
+    try {
+      const res = await scheduleApi.generate(genFrom, finalGenTo);
+      toast.success(`Создано уроков: ${res.data.created}`);
+      setShowGenModal(false);
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка генерации');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // ── Хелперы отображения ─────────────────────────────────────
+
+  const formatStudents = (rule: ScheduleRule) => {
+    if (rule.students.length === 0) return rule.group_name || 'Групповое';
+    if (rule.students.length === 1) return rule.students[0].name;
+    return rule.group_name || `${rule.students.length} учеников`;
+  };
+
+  // ── Render ─────────────────────────────────────────────────
 
   if (loading) return <div className={styles.empty}>Загрузка...</div>;
 
   return (
     <div className={styles.page}>
+      {/* Header */}
       <div className={styles.header}>
         <h1 className={styles.title}>Расписание</h1>
         <div className={styles.headerActions}>
-          <button className={styles.addBtn} onClick={() => setShowModal(true)}>
+          <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}>
             <Icon name="plus" size={18} /> Новое правило
           </button>
-          <button className={styles.generateBtn} onClick={handleGenerate} disabled={generating}>
+          <button className={styles.generateBtn} onClick={() => setShowGenModal(true)}>
             <Icon name="calendar" size={18} />
-            {generating ? 'Генерация...' : 'Сгенерировать на 30 дней'}
+            Сгенерировать уроки
           </button>
         </div>
       </div>
 
+      {/* Rules Table */}
       <div className={styles.tableWrapper}>
         {rules.length === 0 ? (
           <div className={styles.empty}>Нет правил расписания. Создайте первое!</div>
@@ -160,9 +274,9 @@ export default function SchedulePage() {
                 <th>День</th>
                 <th>Время</th>
                 <th>Длительность</th>
-                <th>Ученик / Группа</th>
+                <th>Ученики</th>
                 <th>Период</th>
-                <th></th>
+                <th className={styles.actionsHeader}>Действия</th>
               </tr>
             </thead>
             <tbody>
@@ -171,12 +285,25 @@ export default function SchedulePage() {
                   <td className={styles.weekdayCell}>{WEEKDAYS[r.weekday]}</td>
                   <td className={styles.timeCell}>{r.start_time.slice(0, 5)}</td>
                   <td>{r.duration_minutes} мин</td>
-                  <td>{r.group_name || students.find((s) => s.id === r.student_id)?.name || `#${r.student_id}`}</td>
-                  <td className={styles.periodCell}>
-                    с {r.effective_from}{r.effective_to ? ` по ${r.effective_to}` : ''}
-                  </td>
                   <td>
-                    <button className={styles.deleteBtn} onClick={() => handleDelete(r.id)}>
+                    <div className={styles.studentsCell}>
+                      {r.students.length > 0 ? (
+                        r.students.map((s) => (
+                          <span key={s.id} className={styles.studentChip}>{s.name}</span>
+                        ))
+                      ) : (
+                        <span className={styles.groupLabel}>{r.group_name || 'Групповое'}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className={styles.periodCell}>
+                    {r.effective_from}{r.effective_to ? ` → ${r.effective_to}` : ' → ∞'}
+                  </td>
+                  <td className={styles.actionsCell}>
+                    <button className={styles.actionBtn} onClick={() => openEdit(r)} title="Редактировать">
+                      <Icon name="edit" size={14} />
+                    </button>
+                    <button className={`${styles.actionBtn} ${styles.deleteActionBtn}`} onClick={() => handleDelete(r.id)} title="Удалить">
                       <Icon name="trash" size={14} />
                     </button>
                   </td>
@@ -187,54 +314,75 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* Модальное окно с динамическими блоками */}
-      {showModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
+      {/* Calendar */}
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Календарь занятий</h2>
+        <ScheduleCalendar
+          lessons={lessons}
+          onDayClick={(date, dayLessons) => setSelectedDay({ date, lessons: dayLessons })}
+        />
+      </div>
+
+      {/* ── Modal: Create ──────────────────────────────────── */}
+      {showCreateModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
           <form className={styles.modal} onSubmit={handleCreate} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Новое правило расписания</h2>
 
-            {/* Ученик */}
             <div className={styles.formGroup}>
-              <label className={styles.label}>Ученик</label>
-              <select className={styles.input} value={formStudentId} onChange={(e) => setFormStudentId(e.target.value)}>
-                <option value="">Без привязки (групповое)</option>
-                {students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <label className={styles.label}>Ученики (выберите несколько для группового)</label>
+              <div className={styles.studentPicker}>
+                {students.map((s) => (
+                  <label
+                    key={s.id}
+                    className={`${styles.studentChipPicker} ${formStudentIds.includes(s.id) ? styles.studentChipActive : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formStudentIds.includes(s.id)}
+                      onChange={() => toggleStudent(s.id)}
+                      className={styles.hiddenCheckbox}
+                    />
+                    {s.name}
+                  </label>
+                ))}
+                {students.length === 0 && <div className={styles.emptyHint}>Нет учеников. Создайте сначала.</div>}
+              </div>
+              <div className={styles.hint}>
+                {formStudentIds.length === 0 && 'Групповое занятие (без привязки)'}
+                {formStudentIds.length === 1 && 'Индивидуальное занятие'}
+                {formStudentIds.length > 1 && `Групповое занятие (${formStudentIds.length} учеников)`}
+              </div>
             </div>
 
-            {/* Общий период действия */}
-            <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Название группы (опционально)</label>
+              <input
+                className={styles.input}
+                value={formGroupName}
+                onChange={(e) => setFormGroupName(e.target.value)}
+                placeholder="Например: Подготовка к ЕГЭ"
+              />
+            </div>
+
             <div className={styles.formGroup}>
               <label className={styles.label}>Период действия *</label>
               <DateRangeField
                 startDate={formFrom}
                 endDate={formTo}
-                onChange={(start, end) => {
-                  setFormFrom(start);
-                  setFormTo(end);
-                }}
+                onChange={(start, end) => { setFormFrom(start); setFormTo(end); }}
               />
             </div>
-            </div>
 
-            {/* Разделитель */}
-            <div className={styles.divider}>
-              <span className={styles.dividerText}>Дни и время</span>
-            </div>
+            <div className={styles.divider}><span className={styles.dividerText}>Дни и время</span></div>
 
-            {/* Динамические блоки */}
             <div className={styles.blocksList}>
               {dayBlocks.map((block, index) => (
                 <div key={block.id} className={styles.dayBlock}>
                   <div className={styles.dayBlockHeader}>
                     <span className={styles.dayBlockNumber}>#{index + 1}</span>
                     {dayBlocks.length > 1 && (
-                      <button
-                        type="button"
-                        className={styles.removeBlockBtn}
-                        onClick={() => removeBlock(block.id)}
-                        title="Удалить день"
-                      >
+                      <button type="button" className={styles.removeBlockBtn} onClick={() => removeBlock(block.id)}>
                         <Icon name="trash" size={14} />
                       </button>
                     )}
@@ -242,35 +390,17 @@ export default function SchedulePage() {
                   <div className={styles.dayBlockFields}>
                     <div className={styles.formGroup}>
                       <label className={styles.label}>День *</label>
-                      <select
-                        className={styles.input}
-                        value={block.weekday}
-                        onChange={(e) => updateBlock(block.id, 'weekday', Number(e.target.value))}
-                        required
-                      >
+                      <select className={styles.input} value={block.weekday} onChange={(e) => updateBlock(block.id, 'weekday', Number(e.target.value))} required>
                         {WEEKDAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                       </select>
                     </div>
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Время *</label>
-                      <input
-                        className={styles.input}
-                        type="time"
-                        value={block.time}
-                        onChange={(e) => updateBlock(block.id, 'time', e.target.value)}
-                        required
-                      />
+                      <input className={styles.input} type="time" value={block.time} onChange={(e) => updateBlock(block.id, 'time', e.target.value)} required />
                     </div>
                     <div className={styles.formGroup}>
                       <label className={styles.label}>Мин</label>
-                      <input
-                        className={styles.input}
-                        type="number"
-                        min="15"
-                        max="480"
-                        value={block.duration}
-                        onChange={(e) => updateBlock(block.id, 'duration', e.target.value)}
-                      />
+                      <input className={styles.input} type="number" min="15" max="480" value={block.duration} onChange={(e) => updateBlock(block.id, 'duration', e.target.value)} />
                     </div>
                   </div>
                 </div>
@@ -282,13 +412,142 @@ export default function SchedulePage() {
             </button>
 
             <div className={styles.modalActions}>
-              <button type="button" className={styles.cancelBtn} onClick={() => setShowModal(false)}>Отмена</button>
+              <button type="button" className={styles.cancelBtn} onClick={() => setShowCreateModal(false)}>Отмена</button>
               <button type="submit" className={styles.submitBtn} disabled={creating}>
                 {creating ? 'Создание...' : `Создать (${dayBlocks.length} дн.)`}
               </button>
             </div>
           </form>
         </div>
+      )}
+
+      {/* ── Modal: Edit ────────────────────────────────────── */}
+      {editingRule && (
+        <div className={styles.modalOverlay} onClick={() => setEditingRule(null)}>
+          <form className={styles.modal} onSubmit={handleEditSave} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Редактировать правило</h2>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Ученики</label>
+              <div className={styles.studentPicker}>
+                {students.map((s) => (
+                  <label
+                    key={s.id}
+                    className={`${styles.studentChipPicker} ${editForm.student_ids.includes(s.id) ? styles.studentChipActive : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={editForm.student_ids.includes(s.id)}
+                      onChange={() => toggleEditStudent(s.id)}
+                      className={styles.hiddenCheckbox}
+                    />
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+              <div className={styles.hint}>
+                {editForm.student_ids.length === 0 && 'Групповое занятие'}
+                {editForm.student_ids.length === 1 && 'Индивидуальное занятие'}
+                {editForm.student_ids.length > 1 && `Групповое (${editForm.student_ids.length} учеников)`}
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Название группы</label>
+              <input
+                className={styles.input}
+                value={editForm.group_name}
+                onChange={(e) => setEditForm((f) => ({ ...f, group_name: e.target.value }))}
+              />
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>День недели *</label>
+                <select className={styles.input} value={editForm.weekday} onChange={(e) => setEditForm((f) => ({ ...f, weekday: Number(e.target.value) }))} required>
+                  {WEEKDAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                </select>
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Время *</label>
+                <input className={styles.input} type="time" value={editForm.time} onChange={(e) => setEditForm((f) => ({ ...f, time: e.target.value }))} required />
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Длительность (мин)</label>
+              <input className={styles.input} type="number" min="15" max="480" value={editForm.duration} onChange={(e) => setEditForm((f) => ({ ...f, duration: Number(e.target.value) }))} />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Период действия *</label>
+              <DateRangeField
+                startDate={editForm.effective_from}
+                endDate={editForm.effective_to}
+                onChange={(start, end) => setEditForm((f) => ({ ...f, effective_from: start, effective_to: end }))}
+              />
+            </div>
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.cancelBtn} onClick={() => setEditingRule(null)}>Отмена</button>
+              <button type="submit" className={styles.submitBtn} disabled={saving}>
+                {saving ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Modal: Generate Lessons ────────────────────────── */}
+      {showGenModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowGenModal(false)}>
+          <form className={styles.modal} onSubmit={handleGenerate} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Сгенерировать уроки</h2>
+            
+            <p className={styles.modalHint}>
+              Уроки будут созданы на основе активных правил расписания, 
+              с учётом исключений (SKIP/ADD). Дубликаты не создаются.
+            </p>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Диапазон дат *</label>
+              <DateRangeField
+                startDate={genFrom}
+                endDate={genTo}
+                onChange={(start, end) => {
+                  setGenFrom(start);
+                  setGenTo(end);
+                }}
+              />
+              <div className={styles.hint}>
+                По умолчанию генерируется до конца месяца, если не указано иное.
+              </div>
+            </div>
+
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={() => setShowGenModal(false)}
+              >
+                Отмена
+              </button>
+              <button type="submit" className={styles.submitBtn} disabled={generating}>
+                {generating ? 'Генерация...' : 'Сгенерировать'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Day Detail Modal ───────────────────────────────── */}
+      {selectedDay && (
+        <DayDetailModal
+          date={selectedDay.date}
+          lessons={selectedDay.lessons}
+          onClose={() => setSelectedDay(null)}
+          onLessonClick={handleLessonClick}
+        />
       )}
     </div>
   );

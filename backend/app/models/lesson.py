@@ -30,6 +30,12 @@ class Lesson(Base):
         lazy="selectin",
     )
 
+    homework_attachments: Mapped[list["HomeworkAttachment"]] = relationship(
+        back_populates="lesson",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
 
 class LessonStudent(Base):
     __tablename__ = "lesson_students"

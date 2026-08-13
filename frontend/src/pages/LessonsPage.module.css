@@ -26,14 +26,54 @@
   font-size: var(--font-size-sm); font-weight: 500; white-space: nowrap;
 }
 
-.statusBadge {
-  display: inline-block; padding: 3px 10px; border-radius: 99px;
-  font-size: var(--font-size-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
-}
-.statusScheduled { background: rgba(99,102,241,0.12); color: var(--color-primary); }
-.statusCompleted { background: rgba(34,197,94,0.12); color: var(--color-success); }
-.statusCancelled { background: rgba(239,68,68,0.12); color: var(--color-danger); }
+.statusWrapper { position: relative; display: inline-block; }
 
-.homeworkCell { color: var(--text-secondary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusBtn {
+  background: none; border: none; padding: 0; cursor: pointer;
+  border-radius: 99px; transition: box-shadow var(--transition);
+}
+.statusBtn:hover { box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
+
+.statusOverlay {
+  position: fixed; inset: 0; z-index: 50;
+}
+
+.statusDropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 51;
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm); box-shadow: var(--shadow-modal);
+  display: flex; flex-direction: column; gap: 2px; padding: 4px;
+  min-width: 140px; animation: fadeIn 0.1s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.statusOption {
+  background: none; border: none; padding: 6px 8px; cursor: pointer;
+  border-radius: var(--border-radius-sm); transition: background var(--transition);
+  display: flex; align-items: center;
+}
+.statusOption:hover { background: var(--bg-hover); }
+.statusOptionActive { background: var(--bg-hover); }
+
+.homeworkContent { display: flex; flex-direction: column; gap: var(--spacing-sm); min-width: 200px; }
+.homeworkText { font-size: var(--font-size-sm); color: var(--text-secondary); margin: 0; line-height: 1.4; }
+
+.highlightedRow {
+  background: rgba(99, 102, 241, 0.08) !important;
+  animation: highlightPulse 2s ease-out;
+}
+@keyframes highlightPulse {
+  0% { background: rgba(99, 102, 241, 0.25) !important; }
+  100% { background: rgba(99, 102, 241, 0.08) !important; }
+}
+
+[data-theme='dark'] .highlightedRow {
+  background: rgba(129, 140, 248, 0.12) !important;
+  animation: highlightPulseDark 2s ease-out;
+}
+@keyframes highlightPulseDark {
+  0% { background: rgba(129, 140, 248, 0.3) !important; }
+  100% { background: rgba(129, 140, 248, 0.12) !important; }
+}
 
 .empty { padding: calc(var(--spacing-xl) * 2); text-align: center; color: var(--text-muted); font-size: var(--font-size-lg); }

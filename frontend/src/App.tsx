@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import SchedulePage from './pages/SchedulePage';
 import LessonsPage from './pages/LessonsPage';
 import PackagesPage from './pages/PackagesPage';
+import StudentsPage from './pages/StudentsPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('access_token');
@@ -27,9 +28,9 @@ export default function App() {
         >
           <Route path="/" element={<DashboardPage />} />
           <Route path="/schedule" element={<SchedulePage />} />
-          <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/students" element={<StudentsPage />} />
           <Route path="/lessons" element={<LessonsPage />} />
-          {/* Следующие страницы подключим здесь */}
+          <Route path="/packages" element={<PackagesPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

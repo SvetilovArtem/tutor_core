@@ -1,3 +1,5 @@
+/* ── Page Layout ─────────────────────────────────────────────── */
+
 .page {
   display: flex;
   flex-direction: column;
@@ -35,9 +37,11 @@
   background: var(--color-primary-hover);
 }
 
+/* ── Search ──────────────────────────────────────────────────── */
+
 .searchWrapper {
   position: relative;
-  width: 320px;
+  width: 360px;
 }
 
 .searchIcon {
@@ -66,6 +70,8 @@
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
+/* ── Table ───────────────────────────────────────────────────── */
+
 .tableWrapper {
   background: var(--bg-card);
   border-radius: var(--border-radius-md);
@@ -90,6 +96,7 @@
   font-size: var(--font-size-sm);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .table td {
@@ -113,6 +120,12 @@
 .nameCell {
   font-weight: 600;
   color: var(--text-main);
+  white-space: nowrap;
+}
+
+.phoneCell {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .notesCell {
@@ -123,18 +136,63 @@
   white-space: nowrap;
 }
 
+.actionsHeader {
+  width: 80px;
+}
+
+.actionsCell {
+  display: flex;
+  gap: var(--spacing-xs);
+  justify-content: flex-end;
+}
+
+.noData {
+  color: var(--text-muted);
+}
+
+/* ── Subject Tags (в таблице) ────────────────────────────────── */
+
+.subjectTags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.subjectTag {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary);
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .subjectTag {
+  background: rgba(129, 140, 248, 0.15);
+}
+
+/* ── Action Buttons ──────────────────────────────────────────── */
+
+.editBtn,
 .deleteBtn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   background: none;
   border: 1px solid var(--border-color);
-  color: var(--text-secondary);
   border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition);
+}
+
+.editBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.08);
 }
 
 .deleteBtn:hover {
@@ -143,14 +201,17 @@
   background: rgba(239, 68, 68, 0.08);
 }
 
+/* ── Empty State ─────────────────────────────────────────────── */
+
 .empty {
-  padding: var(--spacing-xl) * 2;
+  padding: calc(var(--spacing-xl) * 2);
   text-align: center;
   color: var(--text-muted);
   font-size: var(--font-size-lg);
 }
 
-/* Модальное окно */
+/* ── Modal ───────────────────────────────────────────────────── */
+
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -174,7 +235,9 @@
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-modal);
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
@@ -193,6 +256,8 @@
   margin: 0;
 }
 
+/* ── Form Elements ───────────────────────────────────────────── */
+
 .formGroup {
   display: flex;
   flex-direction: column;
@@ -205,7 +270,8 @@
   color: var(--text-main);
 }
 
-.input, .textarea {
+.input,
+.textarea {
   padding: 12px 14px;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
@@ -217,7 +283,8 @@
   transition: border-color var(--transition), background var(--transition);
 }
 
-.input:focus, .textarea:focus {
+.input:focus,
+.textarea:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
@@ -226,6 +293,52 @@
   resize: vertical;
   min-height: 80px;
 }
+
+/* ── Subject Chips (в форме) ─────────────────────────────────── */
+
+.subjectChips {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.subjectChip {
+  padding: 6px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 99px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+  color: var(--text-secondary);
+}
+
+.subjectChip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.subjectChipActive {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.subjectChipActive:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--text-inverse);
+}
+
+.hiddenCheckbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* ── Modal Actions ───────────────────────────────────────────── */
 
 .modalActions {
   display: flex;
@@ -270,3 +383,68 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ── Filters Bar ─────────────────────────────────────────────── */
+.filters {
+  display: flex;
+  gap: var(--spacing-md);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filterSelect {
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-md);
+  background: var(--bg-input);
+  color: var(--text-main);
+  outline: none;
+  cursor: pointer;
+  min-width: 160px;
+  transition: border-color var(--transition);
+}
+.filterSelect:focus { border-color: var(--color-primary); }
+
+/* ── Sortable Headers ────────────────────────────────────────── */
+.sortableTh {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: color var(--transition);
+}
+.sortableTh:hover { color: var(--color-primary); }
+
+.sortIcon { margin-left: 4px; font-weight: 700; color: var(--color-primary); }
+.sortIconPlaceholder { margin-left: 4px; opacity: 0.3; }
+
+/* ── Status Badge ────────────────────────────────────────────── */
+.statusBadge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.statusActive { background: rgba(34,197,94,0.12); color: var(--color-success); }
+.statusInactive { background: rgba(107,114,128,0.12); color: var(--text-muted); }
+
+/* ── Inactive Row ────────────────────────────────────────────── */
+.inactiveRow td { opacity: 0.5; }
+.inactiveRow:hover td { opacity: 0.8; }
+
+/* ── Action Buttons ──────────────────────────────────────────── */
+.actionBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: none; border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm); color: var(--text-secondary);
+  cursor: pointer; transition: all var(--transition);
+}
+.actionBtn:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(99,102,241,0.08); }
+
+.deactivateBtn:hover { border-color: var(--color-warning); color: var(--color-warning); background: rgba(245,158,11,0.08); }
+.activateBtn:hover { border-color: var(--color-success); color: var(--color-success); background: rgba(34,197,94,0.08); }
+.deleteActionBtn:hover { border-color: var(--color-danger); color: var(--color-danger); background: rgba(239,68,68,0.08); }

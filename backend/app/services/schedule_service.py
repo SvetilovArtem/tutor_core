@@ -1,8 +1,9 @@
 """Генерация уроков из ScheduleRule + ScheduleException."""
 
-from datetime import date, timedelta, datetime, time as dtime
+from datetime import date, timedelta, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.models.schedule import ScheduleRule, ScheduleException
 from app.models.lesson import Lesson, LessonStudent
@@ -18,13 +19,17 @@ async def generate_lessons(
     Генерирует уроки на диапазон дат по правилам расписания.
     Возвращает {"created": N, "skipped": M}.
     Идемпотентна: не создаёт дубликаты.
+    Поддерживает индивидуальные (1 ученик) и групповые (>1 ученика) занятия.
     """
+    # ДОБАВЛЕНО: selectinload для эффективной загрузки списка учеников
     rules_result = await db.execute(
-        select(ScheduleRule).where(
+        select(ScheduleRule)
+        .where(
             ScheduleRule.tutor_id == tutor_id,
             ScheduleRule.is_active == True,
             ScheduleRule.effective_from <= date_to,
         )
+        .options(selectinload(ScheduleRule.students))
     )
     rules = rules_result.scalars().all()
 
@@ -93,15 +98,16 @@ async def generate_lessons(
                 start_at=start_at,
                 end_at=end_at,
                 status="SCHEDULED",
-                max_students=1 if rule.student_id else None,
+                max_students=len(rule.students) if rule.students else None,
             )
             db.add(lesson)
             await db.flush()
 
-            if rule.student_id:
+            # ОБНОВЛЕНО: Создаем связи для ВСЕХ учеников в правиле (группа или индивидуальный)
+            for student in rule.students:
                 ls = LessonStudent(
                     lesson_id=lesson.id,
-                    student_id=rule.student_id,
+                    student_id=student.id,
                     status="SCHEDULED",
                 )
                 db.add(ls)

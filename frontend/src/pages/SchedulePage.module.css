@@ -34,16 +34,7 @@
 .timeCell { font-weight: 600; font-variant-numeric: tabular-nums; }
 .periodCell { color: var(--text-secondary); font-size: var(--font-size-sm); }
 
-.deleteBtn {
-  display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; background: none; border: 1px solid var(--border-color);
-  color: var(--text-secondary); border-radius: var(--border-radius-sm);
-  cursor: pointer; transition: all var(--transition);
-}
-.deleteBtn:hover { border-color: var(--color-danger); color: var(--color-danger); background: rgba(239,68,68,0.08); }
-
 .empty { padding: calc(var(--spacing-xl) * 2); text-align: center; color: var(--text-muted); font-size: var(--font-size-lg); }
-
 
 /* Header actions */
 .headerActions { display: flex; gap: var(--spacing-sm); }
@@ -62,18 +53,33 @@
   position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center; z-index: 100;
   animation: fadeIn 0.15s ease;
+  
+  /* ИСПРАВЛЕНО: переносим скролл сюда, чтобы календарь не обрезался */
+  padding: var(--spacing-lg);
+  overflow-y: auto;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal {
   background: var(--bg-card); padding: var(--spacing-xl); border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-modal); width: 100%; max-width: 480px;
+  box-shadow: var(--shadow-modal); width: 100%; max-width: 520px;
   display: flex; flex-direction: column; gap: var(--spacing-md);
   border: 1px solid var(--border-color); animation: slideUp 0.2s ease;
+  
+  /* ИСПРАВЛЕНО: убираем внутренний скролл, чтобы выпадающий календарь не обрезался */
+  overflow: visible;
 }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 .modalTitle { font-size: var(--font-size-lg); font-weight: 700; margin: 0; }
+.modalHint {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
 .formGroup { display: flex; flex-direction: column; gap: var(--spacing-xs); }
 .formRow { display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); }
 .label { font-size: var(--font-size-sm); font-weight: 500; color: var(--text-main); }
@@ -101,52 +107,78 @@
 .submitBtn:hover:not(:disabled) { background: var(--color-primary-hover); }
 .submitBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Weekday chips */
-.weekdayGrid {
+/* Student picker (multiselect) */
+.studentPicker {
   display: flex;
-  gap: var(--spacing-xs);
   flex-wrap: wrap;
-}
-
-.weekdayChip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 14px;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-sm);
+  background: var(--bg-input);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.studentChipPicker {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 99px;
   font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition);
   user-select: none;
-  min-width: 48px;
-  text-align: center;
+  transition: all var(--transition);
+  background: var(--bg-card);
+  color: var(--text-main);
 }
-
-.weekdayChip:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.weekdayChipActive {
+.studentChipPicker:hover { border-color: var(--color-primary); }
+.studentChipActive {
   background: var(--color-primary);
+  color: #fff;
   border-color: var(--color-primary);
-  color: var(--text-inverse);
 }
+.studentChipActive:hover { background: var(--color-primary-hover); }
 
-.weekdayChipActive:hover {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-  color: var(--text-inverse);
-}
-
-.weekdayCheckbox {
+.hiddenCheckbox {
   position: absolute;
   opacity: 0;
-  width: 0;
-  height: 0;
+  pointer-events: none;
+}
+
+.hint {
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.emptyHint {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-sm);
+}
+
+/* Students cell in table */
+.studentsCell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.studentChip {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-primary);
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+.groupLabel {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-style: italic;
 }
 
 /* Divider */
@@ -156,14 +188,12 @@
   gap: var(--spacing-md);
   margin: var(--spacing-xs) 0;
 }
-
 .divider::before, .divider::after {
   content: '';
   flex: 1;
   height: 1px;
   background: var(--border-color);
 }
-
 .dividerText {
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -189,10 +219,7 @@
   padding: var(--spacing-md);
   transition: border-color var(--transition);
 }
-
-.dayBlock:hover {
-  border-color: var(--color-primary);
-}
+.dayBlock:hover { border-color: var(--color-primary); }
 
 .dayBlockHeader {
   display: flex;
@@ -222,7 +249,6 @@
   cursor: pointer;
   transition: all var(--transition);
 }
-
 .removeBlockBtn:hover {
   border-color: var(--color-danger);
   color: var(--color-danger);
@@ -251,9 +277,25 @@
   cursor: pointer;
   transition: all var(--transition);
 }
-
 .addBlockBtn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
   background: rgba(99, 102, 241, 0.04);
 }
+
+/* Actions column */
+.actionsHeader { width: 90px; }
+.actionsCell { display: flex; gap: var(--spacing-xs); justify-content: flex-end; }
+
+.actionBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: none; border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm); color: var(--text-secondary);
+  cursor: pointer; transition: all var(--transition);
+}
+.actionBtn:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(99,102,241,0.08); }
+.deleteActionBtn:hover { border-color: var(--color-danger); color: var(--color-danger); background: rgba(239,68,68,0.08); }
+
+.section { margin-top: var(--spacing-xl); }
+.sectionTitle { font-size: var(--font-size-lg); font-weight: 700; margin-bottom: var(--spacing-md); }

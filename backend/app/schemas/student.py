@@ -9,15 +9,12 @@ class ParentCreate(BaseModel):
     phone: str | None = None
     telegram_id: int | None = None
 
-
-class StudentCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
     parent_id: int | None = None
     phone: str | None = None
     telegram_id: int | None = None
     birth_date: date | None = None
     notes: str | None = None
-
 
 class StudentUpdate(BaseModel):
     name: str | None = None
@@ -28,14 +25,28 @@ class StudentUpdate(BaseModel):
     notes: str | None = None
 
 
+class StudentCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    parent_id: int | None = None
+    phone: str | None = None
+    telegram_id: int | None = None
+    birth_date: str | None = None
+    notes: str | None = None
+    subjects: list[str] = Field(default_factory=list) 
+
+
 class StudentResponse(BaseModel):
     id: int
     name: str
     parent_id: int | None
     phone: str | None
     telegram_id: int | None
-    birth_date: date | None
+    birth_date: str | None
     notes: str | None
+    subjects: list[str] = []
+    is_active: bool = True
+
+
 
     class Config:
         from_attributes = True

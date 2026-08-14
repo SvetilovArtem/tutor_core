@@ -48,3 +48,5 @@ class LessonStudent(Base):
     price_charged: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     transaction_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("transactions.id"), nullable=True)
     lesson: Mapped["Lesson"] = relationship(back_populates="lesson_students")
+
+    transaction: Mapped["Transaction"] = relationship()

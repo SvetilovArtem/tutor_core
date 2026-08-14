@@ -2,12 +2,13 @@
 
 import os
 import uuid
-from datetime import timedelta
+from datetime import date, datetime, timedelta
+from decimal import Decimal  # <-- ДОБАВЛЕНО: критически важно для финансов
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -48,11 +49,7 @@ def _attachment_to_dict(att: HomeworkAttachment) -> dict:
 
 
 async def _enrich_lesson_response(lesson: Lesson, db: AsyncSession) -> LessonResponse:
-    """
-    Безопасная конвертация урока в схему ответа.
-    Не использует model_validate напрямую, чтобы избежать конфликта
-    вычисляемых полей url/is_image в homework_attachments.
-    """
+    """Безопасная конвертация урока в схему ответа."""
     lesson_dict = {
         "id": lesson.id,
         "tutor_id": lesson.tutor_id,
@@ -110,19 +107,46 @@ async def _reload_lesson(db: AsyncSession, lesson_id: int) -> Lesson:
 
 @router.get("/", response_model=list[LessonResponse])
 async def list_lessons(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    status: str | None = None,
+    student_ids: str | None = None,
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Список уроков репетитора с учениками."""
-    result = await db.execute(
+    """Список уроков репетитора с фильтрацией."""
+    query = (
         select(Lesson)
         .where(Lesson.tutor_id == tutor.id)
         .options(
             selectinload(Lesson.lesson_students),
             selectinload(Lesson.homework_attachments),
         )
-        .order_by(Lesson.start_at.desc())
     )
+
+    if date_from:
+        query = query.where(Lesson.start_at >= datetime.combine(date_from, datetime.min.time()))
+    if date_to:
+        query = query.where(Lesson.start_at <= datetime.combine(date_to, datetime.max.time()))
+    if status:
+        query = query.where(Lesson.status == status)
+
+    if student_ids:
+        try:
+            ids = [int(x.strip()) for x in student_ids.split(",") if x.strip()]
+            if ids:
+                query = query.where(
+                    Lesson.id.in_(
+                        select(LessonStudent.lesson_id).where(
+                            LessonStudent.student_id.in_(ids)
+                        )
+                    )
+                )
+        except ValueError:
+            pass
+
+    query = query.order_by(Lesson.start_at.desc())
+    result = await db.execute(query)
     lessons = result.scalars().all()
     return [await _enrich_lesson_response(l, db) for l in lessons]
 
@@ -136,17 +160,15 @@ async def create_lesson(
     """Создать одиночный урок (не привязан к расписанию)."""
     end_at = payload.start_at + timedelta(minutes=payload.duration_minutes)
 
-    # Проверка пересечений для индивидуальных уроков
-    if payload.students:
-        conflict = await check_lesson_time_conflict(db, tutor.id, payload.start_at, end_at)
-        if conflict:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f"Пересечение с уроком {conflict.id} "
-                    f"({conflict.start_at.strftime('%d.%m %H:%M')}–{conflict.end_at.strftime('%H:%M')})"
-                ),
-            )
+    conflict = await check_lesson_time_conflict(db, tutor.id, payload.start_at, end_at)
+    if conflict:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Пересечение с уроком {conflict.id} "
+                f"({conflict.start_at.strftime('%d.%m %H:%M')}–{conflict.end_at.strftime('%H:%M')})"
+            ),
+        )
 
     lesson = Lesson(
         tutor_id=tutor.id,
@@ -170,7 +192,6 @@ async def create_lesson(
         db.add(ls)
 
     await db.commit()
-
     lesson = await _reload_lesson(db, lesson.id)
     return await _enrich_lesson_response(lesson, db)
 
@@ -181,14 +202,9 @@ async def create_trial_lesson(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Создать пробное занятие.
-    Автоматически создаёт Parent + Student + Lesson.
-    Ученик не привязан к пакету (пробный урок бесплатный или оплачивается отдельно).
-    """
+    """Создать пробное занятие."""
     end_at = payload.start_at + timedelta(minutes=payload.duration_minutes)
 
-    # Проверка пересечений
     conflict = await check_lesson_time_conflict(db, tutor.id, payload.start_at, end_at)
     if conflict:
         raise HTTPException(
@@ -225,11 +241,7 @@ async def create_trial_lesson(
         status="SCHEDULED",
         meeting_url=payload.meeting_url,
         max_students=1,
-        tutor_notes=(
-            f"Пробное занятие. Предмет: {payload.subject}"
-            if payload.subject
-            else "Пробное занятие"
-        ),
+        tutor_notes=f"Пробное занятие. Предмет: {payload.subject}" if payload.subject else "Пробное занятие",
     )
     db.add(lesson)
     await db.flush()
@@ -243,11 +255,9 @@ async def create_trial_lesson(
     db.add(ls)
 
     await db.commit()
-
     lesson = await _reload_lesson(db, lesson.id)
     lesson_data = await _enrich_lesson_response(lesson, db)
 
-    # Для пробного урока имя ученика известно сразу
     for ls_resp in lesson_data.students:
         if not ls_resp.student_name or ls_resp.student_name == "Unknown":
             ls_resp.student_name = student.name
@@ -263,10 +273,7 @@ async def delete_lesson(
 ):
     """Удалить урок (каскадно удалит lesson_students)."""
     result = await db.execute(
-        select(Lesson).where(
-            Lesson.id == lesson_id,
-            Lesson.tutor_id == tutor.id,
-        )
+        select(Lesson).where(Lesson.id == lesson_id, Lesson.tutor_id == tutor.id)
     )
     lesson = result.scalar_one_or_none()
     if not lesson:
@@ -276,24 +283,53 @@ async def delete_lesson(
     await db.commit()
 
 
+# ── ЗАВЕРШЕНИЕ УРОКА (ФИНАНСЫ + СТАТУС) ───────────────────────
+
 class CompleteLessonRequest(BaseModel):
     attendance: dict[int, str]  # {student_id: "PRESENT"|"ABSENT"|"EXCUSED"|"CANCELLED"}
+    lesson_summary: str | None = None
+    next_homework: str | None = None
 
 
-@router.post("/{lesson_id}/complete", status_code=200)
+@router.post("/{lesson_id}/complete", response_model=LessonResponse, status_code=200)
 async def complete_lesson_endpoint(
     lesson_id: int,
     payload: CompleteLessonRequest,
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Завершить урок и списать баланс."""
+    """
+    Завершить урок: обновить статусы, сохранить заметки, списать баланс.
+    """
     try:
-        result = await complete_lesson(db, lesson_id, tutor.id, payload.attendance)
-        return result
+        # 1. Вызываем сервис списания баланса и обновления статусов учеников
+        await complete_lesson(
+            db=db,
+            lesson_id=lesson_id,
+            tutor_id=tutor.id,
+            attendance=payload.attendance,
+            default_price=Decimal("25"), # TODO: В будущем брать из student.base_price
+        )
+        
+        # 2. Сохраняем дополнительные заметки и ДЗ, если они переданы
+        lesson = await _reload_lesson(db, lesson_id)
+        
+        if payload.lesson_summary:
+            lesson.tutor_notes = payload.lesson_summary
+        if payload.next_homework:
+            lesson.homework_text = payload.next_homework
+            
+        await db.commit()
+
+        # 3. Возвращаем обновленный урок с новыми статусами и транзакциями
+        lesson = await _reload_lesson(db, lesson.id)
+        return await _enrich_lesson_response(lesson, db)
+        
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+# ── ПРОСТОЕ ОБНОВЛЕНИЕ СТАТУСА (без финансов, например для отмены) ─
 
 class LessonStatusUpdate(BaseModel):
     status: str  # SCHEDULED | COMPLETED | CANCELLED
@@ -306,7 +342,7 @@ async def update_lesson_status(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Изменить статус урока."""
+    """Изменить статус урока (используется для отмены без списания)."""
     valid_statuses = {"SCHEDULED", "COMPLETED", "CANCELLED"}
     if payload.status not in valid_statuses:
         raise HTTPException(
@@ -315,10 +351,7 @@ async def update_lesson_status(
         )
 
     result = await db.execute(
-        select(Lesson).where(
-            Lesson.id == lesson_id,
-            Lesson.tutor_id == tutor.id,
-        )
+        select(Lesson).where(Lesson.id == lesson_id, Lesson.tutor_id == tutor.id)
     )
     lesson = result.scalar_one_or_none()
     if not lesson:
@@ -330,6 +363,8 @@ async def update_lesson_status(
     lesson = await _reload_lesson(db, lesson.id)
     return await _enrich_lesson_response(lesson, db)
 
+
+# ── ВЛОЖЕНИЯ (ДЗ) ─────────────────────────────────────────────
 
 @router.post("/{lesson_id}/attachments", status_code=201)
 async def upload_homework_attachment(

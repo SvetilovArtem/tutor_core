@@ -2,6 +2,97 @@
 .header { display: flex; justify-content: space-between; align-items: center; }
 .title { font-size: var(--font-size-xl); font-weight: 700; letter-spacing: -0.5px; }
 
+.showCancelled {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.showCancelled input {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
+/* Панель фильтров */
+.filtersPanel {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filterLabel {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statusSelect {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  min-width: 160px;
+  transition: border-color var(--transition);
+}
+.statusSelect:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.resetBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-left: auto;
+}
+.resetBtn:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.filterCount {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.filterCount strong {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+/* Таблица */
 .tableWrapper {
   background: var(--bg-card); border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-card); overflow-x: auto; border: 1px solid var(--border-color);
@@ -58,6 +149,37 @@
 .homeworkContent { display: flex; flex-direction: column; gap: var(--spacing-sm); min-width: 200px; }
 .homeworkText { font-size: var(--font-size-sm); color: var(--text-secondary); margin: 0; line-height: 1.4; }
 
+/* Колонка действий */
+.actionsHeader { width: 70px; text-align: right; }
+.actionsCell { text-align: right; }
+
+.deleteBtn, .restoreBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.deleteBtn:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.restoreBtn:hover {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+/* Подсветка строки */
 .highlightedRow {
   background: rgba(99, 102, 241, 0.08) !important;
   animation: highlightPulse 2s ease-out;
@@ -74,6 +196,14 @@
 @keyframes highlightPulseDark {
   0% { background: rgba(129, 140, 248, 0.3) !important; }
   100% { background: rgba(129, 140, 248, 0.12) !important; }
+}
+
+/* Отменённые уроки */
+.cancelledRow { opacity: 0.55; }
+.cancelledRow:hover { opacity: 0.8; }
+.cancelledRow .studentChip {
+  text-decoration: line-through;
+  color: var(--text-muted);
 }
 
 .empty { padding: calc(var(--spacing-xl) * 2); text-align: center; color: var(--text-muted); font-size: var(--font-size-lg); }

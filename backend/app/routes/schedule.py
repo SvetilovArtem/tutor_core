@@ -79,7 +79,17 @@ async def create_rule(
     db: AsyncSession = Depends(get_db),
 ):
     """Создать правило регулярного расписания."""
-    # ... (тут идет проверка пересечений, как было) ...
+    # Проверка пересечений (для любых правил: индивидуальных и групповых)
+    conflict_info = await check_rule_time_conflict(
+        db, tutor.id, payload.weekday, payload.start_time,
+        payload.duration_minutes, payload.student_ids,
+        payload.effective_from, payload.effective_to,
+    )
+    if conflict_info:
+        raise HTTPException(
+            status_code=409,
+            detail=conflict_info["message"],
+        )
 
     # Конвертация строки времени в time объект
     time_parts = payload.start_time.split(":")
@@ -107,6 +117,9 @@ async def create_rule(
     await db.commit()
     await db.refresh(rule)
 
+    # ── АВТОГЕНЕРАЦИЯ УРОКОВ ──────────────────────────────────────
+    # Генерируем уроки ровно на тот период, который задан в правиле.
+    # Функция идемпотентна: дубликаты не создаст.
     await generate_lessons(db, tutor.id, rule.effective_from, rule.effective_to)
 
     return rule
@@ -147,34 +160,30 @@ async def update_rule(
         time_parts = update_data["start_time"].split(":")
         update_data["start_time"] = dt_time(int(time_parts[0]), int(time_parts[1]))
 
-    # Проверка пересечений при обновлении
+    # Определяем актуальный список учеников
+    if new_student_ids is not None:
+        effective_student_ids = new_student_ids
+    else:
+        effective_student_ids = [s.id for s in rule.students]
+
+    # Проверка пересечений при обновлении (для любых правил)
     new_weekday = update_data.get("weekday", rule.weekday)
     new_start_time = update_data.get("start_time", rule.start_time)
     new_duration = update_data.get("duration_minutes", rule.duration_minutes)
     new_from = update_data.get("effective_from", rule.effective_from)
     new_to = update_data.get("effective_to", rule.effective_to)
 
-    if new_student_ids is not None:
-        effective_student_ids = new_student_ids
-    else:
-        effective_student_ids = [s.id for s in rule.students]
-
-    if len(effective_student_ids) == 1:
-        conflict = await check_rule_time_conflict(
-            db, tutor.id, new_weekday, new_start_time,
-            new_duration, effective_student_ids,
-            new_from, new_to,
-            exclude_rule_id=rule.id,
+    conflict_info = await check_rule_time_conflict(
+        db, tutor.id, new_weekday, new_start_time,
+        new_duration, effective_student_ids,
+        new_from, new_to,
+        exclude_rule_id=rule.id,
+    )
+    if conflict_info:
+        raise HTTPException(
+            status_code=409,
+            detail=conflict_info["message"],
         )
-        if conflict:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f"Пересечение с правилом {conflict.id}: "
-                    f"{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][conflict.weekday]} "
-                    f"{conflict.start_time} ({conflict.duration_minutes} мин)"
-                ),
-            )
 
     for field, value in update_data.items():
         setattr(rule, field, value)

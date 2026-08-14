@@ -18,10 +18,10 @@ async def generate_lessons(
     """
     Генерирует уроки на диапазон дат по правилам расписания.
     Возвращает {"created": N, "skipped": M}.
-    Идемпотентна: не создаёт дубликаты.
+    Идемпотентна: не создаёт дубликаты по времени, даже если урок уже создан вручную.
     Поддерживает индивидуальные (1 ученик) и групповые (>1 ученика) занятия.
     """
-    # ДОБАВЛЕНО: selectinload для эффективной загрузки списка учеников
+    # Загружаем правила с учениками
     rules_result = await db.execute(
         select(ScheduleRule)
         .where(
@@ -79,13 +79,16 @@ async def generate_lessons(
             start_at = datetime.combine(current, start_t)
             end_at = start_at + timedelta(minutes=dur)
 
+            # ИСПРАВЛЕНО: Проверяем наличие урока у репетитора в это время,
+            # НЕ привязываясь к schedule_rule_id. Это предотвращает дубликаты,
+            # если урок уже существует (например, был создан вручную).
             existing = await db.execute(
                 select(Lesson).where(
                     Lesson.tutor_id == tutor_id,
                     Lesson.start_at == start_at,
-                    Lesson.schedule_rule_id == rule.id,
                 )
             )
+            
             if existing.scalar_one_or_none():
                 skipped += 1
                 current += timedelta(days=1)
@@ -103,7 +106,7 @@ async def generate_lessons(
             db.add(lesson)
             await db.flush()
 
-            # ОБНОВЛЕНО: Создаем связи для ВСЕХ учеников в правиле (группа или индивидуальный)
+            # Создаем связи для ВСЕХ учеников в правиле (группа или индивидуальный)
             for student in rule.students:
                 ls = LessonStudent(
                     lesson_id=lesson.id,

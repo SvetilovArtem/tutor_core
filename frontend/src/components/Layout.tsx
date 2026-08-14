@@ -8,6 +8,7 @@ const navItems = [
   { to: '/schedule', label: 'Расписание', icon: 'calendar' },
   { to: '/students', label: 'Ученики', icon: 'users' },
   { to: '/lessons', label: 'Уроки', icon: 'book' },
+  { to: '/cancellations', label: 'Отмены', icon: 'alert' },
   { to: '/packages', label: 'Пакеты', icon: 'ticket' },
 ];
 

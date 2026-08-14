@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routes import tutors, packages, students, schedule, lessons
+from app.routes import tutors, packages, students, schedule, lessons, cancellations
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG)
 
@@ -22,7 +22,7 @@ app.include_router(students.router)
 app.include_router(packages.router)
 app.include_router(schedule.router)
 app.include_router(lessons.router)
-
+app.include_router(cancellations.router)
 
 @app.get("/health")
 async def health():

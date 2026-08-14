@@ -19,8 +19,9 @@ async def check_lesson_time_conflict(
     exclude_lesson_id: int | None = None,
 ) -> Lesson | None:
     """
-    Проверить пересечение по времени для индивидуальных занятий.
-    Групповые уроки (>1 ученика) не считаются конфликтом.
+    Проверить, есть ли у репетитора другие уроки в это время.
+    Репетитор физически может вести только ОДНО занятие в одно время.
+    Возвращает конфликтующий урок или None.
     Отменённые уроки не учитываются.
     """
     query = (
@@ -31,20 +32,13 @@ async def check_lesson_time_conflict(
             Lesson.end_at > start_at,
             Lesson.status != "CANCELLED",
         )
-        .options(selectinload(Lesson.lesson_students))
     )
     if exclude_lesson_id:
         query = query.where(Lesson.id != exclude_lesson_id)
 
     result = await db.execute(query)
-    conflicts = result.scalars().all()
-
-    for conflict in conflicts:
-        # Индивидуальный урок (ровно 1 ученик) — конфликт
-        if len(conflict.lesson_students) == 1:
-            return conflict
-
-    return None
+    conflict = result.scalars().first()
+    return conflict
 
 
 def _parse_time_to_minutes(t) -> int:
@@ -70,28 +64,29 @@ async def check_rule_time_conflict(
     effective_from: date | None,
     effective_to: date | None,
     exclude_rule_id: int | None = None,
-) -> ScheduleRule | None:
+) -> dict | None:
     """
     Проверить пересечение правил расписания.
-    Конфликт только если ОБА правила индивидуальные (ровно 1 ученик).
-    Групповые (>1 ученика) могут пересекаться с чем угодно.
+    Возвращает словарь с информацией о конфликте или None.
+    
+    Проверяет ДВА условия:
+    1. Репетитор не может иметь два правила в одно время (любые: инд/группа).
+    2. Ученики не могут быть заняты в двух правилах одновременно.
     """
-    # Если новое правило — групповое, конфликтов нет
-    if len(student_ids) != 1:
-        return None
-
     new_start_minutes = _parse_time_to_minutes(start_time)
     new_end_minutes = new_start_minutes + duration_minutes
 
-    query = select(ScheduleRule).where(
+    # ── ПРОВЕРКА 1: Репетитор не может вести два занятия одновременно ──
+    tutor_rules_query = select(ScheduleRule).where(
         ScheduleRule.tutor_id == tutor_id,
         ScheduleRule.weekday == weekday,
     )
     if exclude_rule_id:
-        query = query.where(ScheduleRule.id != exclude_rule_id)
+        tutor_rules_query = tutor_rules_query.where(ScheduleRule.id != exclude_rule_id)
 
+    # Фильтр по пересечению периодов действия
     if effective_from and effective_to:
-        query = query.where(
+        tutor_rules_query = tutor_rules_query.where(
             or_(
                 and_(
                     ScheduleRule.effective_from <= effective_to,
@@ -101,29 +96,85 @@ async def check_rule_time_conflict(
             )
         )
     elif effective_from:
-        query = query.where(
+        tutor_rules_query = tutor_rules_query.where(
             or_(
                 ScheduleRule.effective_from <= effective_from,
                 ScheduleRule.effective_to.is_(None),
             )
         )
 
-    result = await db.execute(query)
+    result = await db.execute(tutor_rules_query)
     existing_rules = result.scalars().all()
 
     for rule in existing_rules:
         ex_start_minutes = _parse_time_to_minutes(rule.start_time)
         ex_end_minutes = ex_start_minutes + rule.duration_minutes
 
+        # Проверка временного пересечения
         if new_start_minutes < ex_end_minutes and new_end_minutes > ex_start_minutes:
-            # Временное пересечение есть. Проверяем количество учеников.
-            count_result = await db.execute(
-                select(func.count()).where(ScheduleRuleStudent.rule_id == rule.id)
-            )
-            student_count = count_result.scalar() or 0
+            return {
+                "rule": rule,
+                "reason": "tutor_busy",
+                "message": (
+                    f"В это время у вас уже есть занятие (правило {rule.id}): "
+                    f"{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][rule.weekday]} "
+                    f"{rule.start_time} ({rule.duration_minutes} мин)"
+                ),
+            }
 
-            # Конфликт только если существующее правило тоже индивидуальное
-            if student_count == 1:
-                return rule
+    # ── ПРОВЕРКА 2: Ученики не могут быть в двух местах одновременно ──
+    if student_ids:
+        # Ищем все правила, где есть хотя бы один из наших учеников
+        students_in_conflict_query = (
+            select(ScheduleRule)
+            .join(ScheduleRuleStudent, ScheduleRuleStudent.rule_id == ScheduleRule.id)
+            .where(
+                ScheduleRule.tutor_id == tutor_id,
+                ScheduleRule.weekday == weekday,
+                ScheduleRuleStudent.student_id.in_(student_ids),
+            )
+        )
+        if exclude_rule_id:
+            students_in_conflict_query = students_in_conflict_query.where(
+                ScheduleRule.id != exclude_rule_id
+            )
+
+        # Фильтр по пересечению периодов действия
+        if effective_from and effective_to:
+            students_in_conflict_query = students_in_conflict_query.where(
+                or_(
+                    and_(
+                        ScheduleRule.effective_from <= effective_to,
+                        ScheduleRule.effective_to >= effective_from,
+                    ),
+                    ScheduleRule.effective_to.is_(None),
+                )
+            )
+        elif effective_from:
+            students_in_conflict_query = students_in_conflict_query.where(
+                or_(
+                    ScheduleRule.effective_from <= effective_from,
+                    ScheduleRule.effective_to.is_(None),
+                )
+            )
+
+        result = await db.execute(students_in_conflict_query)
+        student_conflict_rules = result.scalars().all()
+
+        for rule in student_conflict_rules:
+            ex_start_minutes = _parse_time_to_minutes(rule.start_time)
+            ex_end_minutes = ex_start_minutes + rule.duration_minutes
+
+            if new_start_minutes < ex_end_minutes and new_end_minutes > ex_start_minutes:
+                return {
+                    "rule": rule,
+                    "reason": "student_busy",
+                    "message": (
+                        f"Один или несколько учеников уже заняты в это время "
+                        f"(правило {rule.id}): "
+                        f"{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][rule.weekday]} "
+                        f"{rule.start_time} ({rule.duration_minutes} мин)"
+                    ),
+                }
 
     return None

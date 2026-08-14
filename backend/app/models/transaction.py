@@ -15,7 +15,6 @@ class TransactionType(str, enum.Enum):
     ADJUSTMENT = "adjustment"
     REFUND = "refund"
 
-
 class Transaction(Base):
     __tablename__ = "transactions"
 

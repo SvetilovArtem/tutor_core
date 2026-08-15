@@ -448,3 +448,98 @@
 .deactivateBtn:hover { border-color: var(--color-warning); color: var(--color-warning); background: rgba(245,158,11,0.08); }
 .activateBtn:hover { border-color: var(--color-success); color: var(--color-success); background: rgba(34,197,94,0.08); }
 .deleteActionBtn:hover { border-color: var(--color-danger); color: var(--color-danger); background: rgba(239,68,68,0.08); }
+
+/* ── Balance Column ──────────────────────────────────────────── */
+.balanceCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-right: var(--spacing-lg);
+}
+
+.balanceValue {
+  font-weight: 700;
+  font-size: var(--font-size-md);
+}
+
+.balanceNegative {
+  color: var(--color-danger);
+}
+
+.balancePositive {
+  color: var(--color-success);
+}
+
+.balanceZero {
+  color: var(--text-main);
+}
+
+/* ── Payment Action Button ───────────────────────────────────── */
+.payActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--border-radius-sm);
+  color: #fff;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.payActionBtn:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+/* ── Balance Column ──────────────────────────────────────────── */
+.balanceHeader {
+  text-align: right;
+  padding-right: var(--spacing-lg);
+}
+
+.balanceCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-right: var(--spacing-lg);
+}
+
+.balanceValue {
+  font-weight: 700;
+  font-size: var(--font-size-md);
+}
+
+.balanceNegative {
+  color: var(--color-danger);
+}
+
+.balancePositive {
+  color: var(--color-success);
+}
+
+.balanceZero {
+  color: var(--text-main);
+}
+
+/* ── Payment Action Button ───────────────────────────────────── */
+.payActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--border-radius-sm);
+  color: #fff;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.payActionBtn:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}

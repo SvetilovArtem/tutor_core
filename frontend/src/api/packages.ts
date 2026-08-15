@@ -2,16 +2,16 @@ import api from './client';
 
 export interface Package {
   id: number;
+  tutor_id: number;
   student_id: number;
   name: string;
   total_lessons: number;
   remaining_lessons: number;
   price_per_lesson: number;
   duration_minutes: number;
-  purchased_at: string;
   expires_at: string | null;
-  is_active: boolean;
-  payment_status: string;
+  payment_status: 'paid' | 'unpaid';
+  purchased_at: string;
 }
 
 export interface PackageCreate {
@@ -28,4 +28,5 @@ export const packagesApi = {
     api.get<Package[]>('/packages/', { params: studentId ? { student_id: studentId } : {} }),
   create: (data: PackageCreate) => api.post<Package>('/packages/', data),
   delete: (id: number) => api.delete(`/packages/${id}`),
+  pay: (id: number) => api.post(`/packages/${id}/pay`),
 };

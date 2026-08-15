@@ -30,8 +30,18 @@ export default function StudentsPage() {
 
   const [formName, setFormName] = useState('');
   const [formPhone, setFormPhone] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formTelegramId, setFormTelegramId] = useState('');
+  const [formBirthDate, setFormBirthDate] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [formSubjects, setFormSubjects] = useState<string[]>([]);
+  const [formBasePrice, setFormBasePrice] = useState('25');
+
+  // Модалка списания
+  const [showDeductModal, setShowDeductModal] = useState<Student | null>(null);
+  const [deductAmount, setDeductAmount] = useState('');
+  const [deductComment, setDeductComment] = useState('Ошибочное начисление');
+  const [processingDeduct, setProcessingDeduct] = useState(false);
 
   const loadStudents = useCallback(() => {
     setLoading(true);
@@ -72,13 +82,29 @@ export default function StudentsPage() {
   };
 
   const resetForm = () => {
-    setFormName(''); setFormPhone(''); setFormNotes(''); setFormSubjects([]); setEditingId(null);
+    setFormName('');
+    setFormPhone('');
+    setFormEmail('');
+    setFormTelegramId('');
+    setFormBirthDate('');
+    setFormNotes('');
+    setFormSubjects([]);
+    setEditingId(null);
+    setFormBasePrice('25');
   };
 
   const openCreate = () => { resetForm(); setShowModal(true); };
   const openEdit = (s: Student) => {
-    setFormName(s.name); setFormPhone(s.phone || ''); setFormNotes(s.notes || '');
-    setFormSubjects([...s.subjects]); setEditingId(s.id); setShowModal(true);
+    setFormName(s.name);
+    setFormPhone(s.phone || '');
+    setFormEmail(s.email || '');
+    setFormTelegramId(s.telegram_id ? String(s.telegram_id) : '');
+    setFormBirthDate(s.birth_date || '');
+    setFormNotes(s.notes || '');
+    setFormSubjects([...s.subjects]);
+    setEditingId(s.id);
+    setFormBasePrice(String(s.base_price || 25));
+    setShowModal(true);
   };
 
   const toggleSubject = (subj: string) => {
@@ -92,6 +118,10 @@ export default function StudentsPage() {
     const payload: StudentCreate = {
       name: formName.trim(),
       phone: formPhone.trim() || undefined,
+      email: formEmail.trim() || undefined,
+      telegram_id: formTelegramId ? Number(formTelegramId) : undefined,
+      birth_date: formBirthDate || undefined,
+      base_price: Number(formBasePrice) || 25,
       notes: formNotes.trim() || undefined,
       subjects: formSubjects,
     };
@@ -134,6 +164,29 @@ export default function StudentsPage() {
       toast.success('Ученик удалён');
       setStudents((prev) => prev.filter((s) => s.id !== id));
     } catch { toast.error('Ошибка удаления'); }
+  };
+
+  const handleDeductBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showDeductModal || !deductAmount) return;
+    setProcessingDeduct(true);
+    try {
+      const amountToDeduct = -Math.abs(Number(deductAmount));
+      await studentsApi.adjustBalance(
+        showDeductModal.id,
+        amountToDeduct,
+        deductComment || 'Корректировка баланса'
+      );
+      toast.success('Средства списаны, баланс обновлён');
+      setShowDeductModal(null);
+      setDeductAmount('');
+      setDeductComment('Ошибочное начисление');
+      loadStudents();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка списания');
+    } finally {
+      setProcessingDeduct(false);
+    }
   };
 
   return (
@@ -180,47 +233,70 @@ export default function StudentsPage() {
                 </th>
                 <th>Телефон</th>
                 <th>Предметы</th>
+                <th className={styles.balanceHeader}>Баланс</th>
                 <th>Статус</th>
                 <th>Заметки</th>
                 <th className={styles.actionsHeader}>Действия</th>
               </tr>
             </thead>
             <tbody>
-              {students.map((s) => (
-                <tr key={s.id} className={!s.is_active ? styles.inactiveRow : ''}>
-                  <td className={styles.nameCell}>{s.name}</td>
-                  <td className={styles.phoneCell}>{s.phone || '—'}</td>
-                  <td>
-                    <div className={styles.subjectTags}>
-                      {s.subjects.length > 0
-                        ? s.subjects.map((subj) => <span key={subj} className={styles.subjectTag}>{subj}</span>)
-                        : <span className={styles.noData}>—</span>}
-                    </div>
-                  </td>
-                  <td>
-                    <StatusBadge status={String(s.is_active)} type="activity" />
-                  </td>
-                  <td className={styles.notesCell}>{s.notes || '—'}</td>
-                  <td className={styles.actionsCell}>
-                    <button className={styles.actionBtn} onClick={() => openEdit(s)} title="Редактировать">
-                      <Icon name="edit" size={14} />
-                    </button>
-                    <button className={styles.actionBtn} onClick={() => handleRemindPayment(s.id, s.name)} title="Напомнить об оплате">
-                      <Icon name="bell" size={14} />
-                    </button>
-                    <button
-                      className={`${styles.actionBtn} ${!s.is_active ? styles.activateBtn : styles.deactivateBtn}`}
-                      onClick={() => handleToggleActive(s.id, s.name, s.is_active)}
-                      title={s.is_active ? 'Деактивировать' : 'Активировать'}
-                    >
-                      <Icon name={s.is_active ? 'eyeOff' : 'eye'} size={14} />
-                    </button>
-                    <button className={`${styles.actionBtn} ${styles.deleteActionBtn}`} onClick={() => handleDelete(s.id, s.name)} title="Удалить">
-                      <Icon name="trash" size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {students.map((s) => {
+                const balance = Number(s.balance ?? 0);
+                const balanceClass = balance < 0
+                  ? styles.balanceNegative
+                  : balance > 0
+                    ? styles.balancePositive
+                    : styles.balanceZero;
+
+                return (
+                  <tr key={s.id} className={!s.is_active ? styles.inactiveRow : ''}>
+                    <td className={styles.nameCell}>{s.name}</td>
+                    <td className={styles.phoneCell}>{s.phone || '—'}</td>
+                    <td>
+                      <div className={styles.subjectTags}>
+                        {s.subjects.length > 0
+                          ? s.subjects.map((subj) => <span key={subj} className={styles.subjectTag}>{subj}</span>)
+                          : <span className={styles.noData}>—</span>}
+                      </div>
+                    </td>
+                    <td className={styles.balanceCell}>
+                      <span className={`${styles.balanceValue} ${balanceClass}`}>
+                        {balance.toFixed(2)} BYN
+                      </span>
+                    </td>
+                    <td>
+                      <StatusBadge status={String(s.is_active)} type="activity" />
+                    </td>
+                    <td className={styles.notesCell}>{s.notes || '—'}</td>
+                    <td className={styles.actionsCell}>
+                      <button 
+                        className={styles.actionBtn} 
+                        onClick={() => setShowDeductModal(s)} 
+                        title="Списать с баланса (корректировка)"
+                        style={{ color: 'var(--color-warning)' }}
+                      >
+                        <Icon name="minus" size={14} />
+                      </button>
+                      <button className={styles.actionBtn} onClick={() => openEdit(s)} title="Редактировать">
+                        <Icon name="edit" size={14} />
+                      </button>
+                      <button className={styles.actionBtn} onClick={() => handleRemindPayment(s.id, s.name)} title="Напомнить об оплате">
+                        <Icon name="bell" size={14} />
+                      </button>
+                      <button
+                        className={`${styles.actionBtn} ${!s.is_active ? styles.activateBtn : styles.deactivateBtn}`}
+                        onClick={() => handleToggleActive(s.id, s.name, s.is_active)}
+                        title={s.is_active ? 'Деактивировать' : 'Активировать'}
+                      >
+                        <Icon name={s.is_active ? 'eyeOff' : 'eye'} size={14} />
+                      </button>
+                      <button className={`${styles.actionBtn} ${styles.deleteActionBtn}`} onClick={() => handleDelete(s.id, s.name)} title="Удалить">
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -230,14 +306,66 @@ export default function StudentsPage() {
         <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
           <form className={styles.modal} onSubmit={handleSave} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>{editingId ? 'Редактировать ученика' : 'Новый ученик'}</h2>
+            
             <div className={styles.formGroup}>
               <label className={styles.label}>Имя *</label>
               <input className={styles.input} value={formName} onChange={(e) => setFormName(e.target.value)} required autoFocus />
             </div>
+            
             <div className={styles.formGroup}>
               <label className={styles.label}>Телефон</label>
               <input className={styles.input} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="+375..." />
             </div>
+
+            {/* НОВОЕ: Email */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Email</label>
+              <input 
+                className={styles.input} 
+                type="email"
+                value={formEmail} 
+                onChange={(e) => setFormEmail(e.target.value)} 
+                placeholder="example@mail.com" 
+              />
+            </div>
+
+            {/* НОВОЕ: Telegram ID (числовой, как в модели) */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Telegram ID</label>
+              <input 
+                className={styles.input} 
+                type="number"
+                value={formTelegramId} 
+                onChange={(e) => setFormTelegramId(e.target.value)} 
+                placeholder="123456789" 
+              />
+            </div>
+
+            {/* НОВОЕ: Дата рождения */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Дата рождения</label>
+              <input 
+                className={styles.input} 
+                type="date"
+                value={formBirthDate} 
+                onChange={(e) => setFormBirthDate(e.target.value)} 
+              />
+            </div>
+
+            {/* Стоимость урока */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Стоимость урока (BYN) *</label>
+              <input
+                className={styles.input}
+                type="number"
+                min="0"
+                step="0.01"
+                value={formBasePrice}
+                onChange={(e) => setFormBasePrice(e.target.value)}
+                required
+              />
+            </div>
+
             {tutorSubjects.length > 0 && (
               <div className={styles.formGroup}>
                 <label className={styles.label}>Предметы</label>
@@ -251,14 +379,61 @@ export default function StudentsPage() {
                 </div>
               </div>
             )}
+            
             <div className={styles.formGroup}>
               <label className={styles.label}>Заметки</label>
               <textarea className={styles.textarea} value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Уровень, особенности, цели..." />
             </div>
+            
             <div className={styles.modalActions}>
               <button type="button" className={styles.cancelBtn} onClick={() => setShowModal(false)}>Отмена</button>
               <button type="submit" className={styles.submitBtn} disabled={saving}>
                 {saving ? 'Сохранение...' : editingId ? 'Сохранить' : 'Создать'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showDeductModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowDeductModal(null)}>
+          <form className={styles.modal} onSubmit={handleDeductBalance} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>Списать с баланса: {showDeductModal.name}</h2>
+            <p className={styles.modalHint}>Используйте для возврата ошибочно начисленных средств</p>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Сумма списания (BYN) *</label>
+              <input
+                className={styles.input}
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={deductAmount}
+                onChange={(e) => setDeductAmount(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Причина</label>
+              <input
+                className={styles.input}
+                value={deductComment}
+                onChange={(e) => setDeductComment(e.target.value)}
+                placeholder="Ошибочное начисление, возврат и т.д."
+              />
+            </div>
+            
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.cancelBtn} onClick={() => setShowDeductModal(null)}>Отмена</button>
+              <button 
+                type="submit" 
+                className={styles.submitBtn} 
+                style={{ background: 'var(--color-warning)' }} 
+                disabled={processingDeduct}
+              >
+                {processingDeduct ? 'Обработка...' : 'Списать'}
               </button>
             </div>
           </form>

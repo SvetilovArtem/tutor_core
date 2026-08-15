@@ -1,6 +1,9 @@
 """CRUD для учеников. Все операции scoped по tutor_id через JWT."""
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select, or_
 from sqlalchemy.orm import selectinload
@@ -8,35 +11,21 @@ from sqlalchemy.orm import selectinload
 from app.database.session import get_db
 from app.models.tutor import Tutor
 from app.models.student import Student
-from app.models.package import Package
-from app.models.lesson import Lesson, LessonStudent
 from app.models.student_subject import StudentSubject
 from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse
 from app.services.auth import get_current_tutor
+from app.services.balance_service import get_student_balance, record_student_payment, adjust_student_balance
 
 router = APIRouter(prefix="/students", tags=["students"])
 
 
 def _student_belongs_to_tutor_query(tutor_id: int):
-    """
-    Ученик принадлежит репетитору.
-    Пока система однотенантная — возвращаем всех учеников.
-    При добавлении мультитенантности раскомментировать фильтр.
-    """
-    # has_package = Student.id.in_(
-    #     select(Package.student_id).where(Package.tutor_id == tutor_id)
-    # )
-    # has_lesson = Student.id.in_(
-    #     select(LessonStudent.student_id)
-    #     .join(Lesson, Lesson.id == LessonStudent.lesson_id)
-    #     .where(Lesson.tutor_id == tutor_id)
-    # )
-    # return or_(has_package, has_lesson)
     return Student.id.isnot(None)
 
 
-def _to_response(student: Student) -> StudentResponse:
-    """Безопасная конвертация ORM-объекта в схему ответа."""
+async def _to_response(db: AsyncSession, student: Student) -> StudentResponse:
+    balance = await get_student_balance(db, student.id)
+    
     return StudentResponse(
         id=student.id,
         name=student.name,
@@ -44,18 +33,12 @@ def _to_response(student: Student) -> StudentResponse:
         phone=student.phone,
         telegram_id=student.telegram_id,
         birth_date=str(student.birth_date) if student.birth_date else None,
+        base_price=student.base_price,
         notes=student.notes,
         is_active=student.is_active,
         subjects=[ss.subject for ss in student.subjects],
+        balance=balance,
     )
-    """Безопасная конвертация ORM-объекта в схему ответа."""
-    data = StudentResponse.model_validate(
-        student,
-        from_attributes=True,
-    )
-
-    object.__setattr__(data, 'subjects', [ss.subject for ss in student.subjects])
-    return data
 
 
 @router.get("/", response_model=list[StudentResponse])
@@ -68,14 +51,12 @@ async def list_students(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Список учеников с поиском, фильтрами и сортировкой."""
     query = (
         select(Student)
         .where(_student_belongs_to_tutor_query(tutor.id))
         .options(selectinload(Student.subjects))
     )
 
-    # Поиск
     if search:
         pattern = f"%{search.strip().lower()}%"
         query = query.where(
@@ -85,11 +66,9 @@ async def list_students(
             )
         )
 
-    # Фильтр по активности
     if is_active is not None:
         query = query.where(Student.is_active == is_active)
 
-    # Фильтр по предмету
     if subject:
         query = query.where(
             Student.id.in_(
@@ -97,7 +76,6 @@ async def list_students(
             )
         )
 
-    # Сортировка
     sort_column = getattr(Student, sort_by, Student.name)
     if sort_order == "desc":
         query = query.order_by(sort_column.desc())
@@ -107,7 +85,7 @@ async def list_students(
     result = await db.execute(query)
     students = result.scalars().all()
 
-    return [_to_response(s) for s in students]
+    return [await _to_response(db, s) for s in students]
 
 
 @router.post("/", response_model=StudentResponse, status_code=201)
@@ -116,8 +94,6 @@ async def create_student(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Создать ученика с привязкой к предметам."""
-    # Валидация предметов
     if payload.subjects:
         invalid = [s for s in payload.subjects if s not in tutor.subjects]
         if invalid:
@@ -126,7 +102,6 @@ async def create_student(
                 detail=f"Предметы {invalid} не входят в ваш список: {tutor.subjects}",
             )
 
-    # Проверка дублей
     query = select(Student).where(
         func.lower(func.trim(Student.name)) == payload.name.strip().lower(),
     )
@@ -143,19 +118,16 @@ async def create_student(
             detail=f"Ученик «{existing.name}» уже существует",
         )
 
-    # Создаём ученика
     student_data = payload.model_dump(exclude={"subjects"}, exclude_unset=True)
     student = Student(**student_data)
     db.add(student)
     await db.flush()
 
-    # Привязываем предметы
     for subj in payload.subjects:
         db.add(StudentSubject(student_id=student.id, subject=subj))
 
     await db.commit()
 
-    # Перезагружаем с subjects
     result = await db.execute(
         select(Student)
         .where(Student.id == student.id)
@@ -163,7 +135,7 @@ async def create_student(
     )
     student = result.scalar_one()
 
-    return _to_response(student)
+    return await _to_response(db, student)
 
 
 @router.get("/{student_id}", response_model=StudentResponse)
@@ -172,7 +144,6 @@ async def get_student(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Получить ученика."""
     result = await db.execute(
         select(Student)
         .where(
@@ -185,7 +156,7 @@ async def get_student(
     if not student:
         raise HTTPException(status_code=404, detail="Ученик не найден")
 
-    return _to_response(student)
+    return await _to_response(db, student)
 
 
 @router.patch("/{student_id}", response_model=StudentResponse)
@@ -195,7 +166,6 @@ async def update_student(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Обновить данные ученика и его предметы."""
     result = await db.execute(
         select(Student)
         .where(
@@ -208,14 +178,11 @@ async def update_student(
     if not student:
         raise HTTPException(status_code=404, detail="Ученик не найден")
 
-    # Обновляем базовые поля
     update_data = payload.model_dump(exclude={"subjects"}, exclude_unset=True)
     for field, value in update_data.items():
         setattr(student, field, value)
 
-    # Обновляем предметы, если переданы
     if payload.subjects is not None:
-        # Валидация
         invalid = [s for s in payload.subjects if s not in tutor.subjects]
         if invalid:
             raise HTTPException(
@@ -223,18 +190,15 @@ async def update_student(
                 detail=f"Предметы {invalid} не входят в ваш список: {tutor.subjects}",
             )
 
-        # Удаляем старые связи
         for ss in list(student.subjects):
             await db.delete(ss)
         await db.flush()
 
-        # Создаём новые
         for subj in payload.subjects:
             db.add(StudentSubject(student_id=student.id, subject=subj))
 
     await db.commit()
 
-    # Перезагружаем с subjects
     result = await db.execute(
         select(Student)
         .where(Student.id == student.id)
@@ -242,7 +206,7 @@ async def update_student(
     )
     student = result.scalar_one()
 
-    return _to_response(student)
+    return await _to_response(db, student)
 
 
 @router.patch("/{student_id}/toggle-active", response_model=StudentResponse)
@@ -251,7 +215,6 @@ async def toggle_student_active(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Деактивировать / активировать ученика."""
     result = await db.execute(
         select(Student)
         .where(
@@ -267,7 +230,6 @@ async def toggle_student_active(
     student.is_active = not student.is_active
     await db.commit()
 
-    # Перезагружаем
     result = await db.execute(
         select(Student)
         .where(Student.id == student.id)
@@ -275,7 +237,7 @@ async def toggle_student_active(
     )
     student = result.scalar_one()
 
-    return _to_response(student)
+    return await _to_response(db, student)
 
 
 @router.post("/{student_id}/remind-payment", status_code=200)
@@ -284,7 +246,6 @@ async def remind_payment(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Отправить напоминание об оплате (заглушка для интеграции с Telegram/email)."""
     result = await db.execute(
         select(Student).where(
             Student.id == student_id,
@@ -295,7 +256,6 @@ async def remind_payment(
     if not student:
         raise HTTPException(status_code=404, detail="Ученик не найден")
 
-    # TODO: Интеграция с Telegram Bot API / email
     return {
         "message": f"Напоминание отправлено ученику «{student.name}»",
         "student_id": student.id,
@@ -308,7 +268,6 @@ async def delete_student(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Удалить ученика (каскадно удалит пакеты, уроки, транзакции)."""
     result = await db.execute(
         select(Student).where(
             Student.id == student_id,
@@ -321,3 +280,85 @@ async def delete_student(
 
     await db.delete(student)
     await db.commit()
+
+
+class StudentPaymentRequest(BaseModel):
+    amount: Decimal = Field(..., gt=0, description="Сумма оплаты (положительная)")
+    comment: str | None = Field(None, max_length=200)
+
+
+@router.post("/{student_id}/payment", status_code=200)
+async def accept_student_payment(
+    student_id: int,
+    payload: StudentPaymentRequest,
+    tutor: Tutor = Depends(get_current_tutor),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            _student_belongs_to_tutor_query(tutor.id),
+        )
+    )
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail="Ученик не найден")
+
+    try:
+        return await record_student_payment(
+            db, student_id, tutor.id, payload.amount, payload.comment
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{student_id}/balance")
+async def get_student_balance_endpoint(
+    student_id: int,
+    tutor: Tutor = Depends(get_current_tutor),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            _student_belongs_to_tutor_query(tutor.id),
+        )
+    )
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail="Ученик не найден")
+
+    balance = await get_student_balance(db, student_id)
+    return {"student_id": student_id, "balance": float(balance)}
+
+
+# ── НОВЫЙ ЭНДПОИНТ: КОРРЕКТИРОВКА БАЛАНСА ─────────────────────
+
+
+class BalanceAdjustmentRequest(BaseModel):
+    amount: Decimal = Field(..., description="Сумма корректировки (может быть отрицательной)")
+    comment: str | None = Field(None, max_length=200)
+
+
+@router.post("/{student_id}/adjust", status_code=200)
+async def adjust_balance_endpoint(
+    student_id: int,
+    payload: BalanceAdjustmentRequest,
+    tutor: Tutor = Depends(get_current_tutor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Корректировка баланса ученика (пополнение или списание)."""
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            _student_belongs_to_tutor_query(tutor.id),
+        )
+    )
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail="Ученик не найден")
+
+    try:
+        return await adjust_student_balance(db, student_id, tutor.id, payload.amount, payload.comment)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

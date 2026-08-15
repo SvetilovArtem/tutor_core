@@ -1,4 +1,4 @@
-"""Завершение урока и списание баланса."""
+"""Завершение урока, списание баланса, возвраты и приёмы оплат."""
 
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from app.models.lesson import Lesson, LessonStudent
 from app.models.transaction import Transaction, TransactionType
 from app.models.balance_audit import BalanceAuditLog
 from app.models.package import Package
+from app.models.student import Student
 
 
 async def get_student_balance(db: AsyncSession, student_id: int) -> Decimal:
@@ -16,7 +17,6 @@ async def get_student_balance(db: AsyncSession, student_id: int) -> Decimal:
         select(func.coalesce(func.sum(Transaction.amount), 0))
         .where(Transaction.student_id == student_id)
     )
-    # scalar() вернет Decimal или None, приводим к Decimal("0") на всякий случай
     return Decimal(str(result.scalar() or 0))
 
 
@@ -27,10 +27,6 @@ async def complete_lesson(
     attendance: dict[int, str],
     default_price: Decimal = Decimal("25"),
 ) -> dict:
-    """
-    Завершить урок и списать средства.
-    attendance = {student_id: "PRESENT" | "ABSENT" | "EXCUSED" | "CANCELLED"}
-    """
     result = await db.execute(
         select(Lesson).where(Lesson.id == lesson_id, Lesson.tutor_id == tutor_id)
     )
@@ -48,11 +44,7 @@ async def complete_lesson(
         status = attendance.get(ls.student_id, "ABSENT")
         ls.status = status
 
-        # Списываем деньги, только если ученик присутствовал или отсутствовал без уважительной причины
-        # EXCUSED (уважительная причина) и CANCELLED не тарифицируются
         if status in ("PRESENT", "ABSENT"):
-            
-            # 1. Определяем цену и пакет
             price = default_price
             pkg = None
             
@@ -62,41 +54,33 @@ async def complete_lesson(
                 )
                 pkg = pkg_result.scalar_one_or_none()
                 
-                # Если пакет есть и в нем остались уроки
                 if pkg and pkg.remaining_lessons > 0 and pkg.is_active:
                     price = pkg.price_per_lesson
                     pkg.remaining_lessons -= 1
-                    
-                    # ИСПРАВЛЕНИЕ 1: Деактивируем пакет, если уроки закончились
                     if pkg.remaining_lessons == 0:
                         pkg.is_active = False
 
-            # Сохраняем списанную сумму в связке урок-ученик
             ls.price_charged = price
-
-            # 2. Финансовая логика
+            # НОВОЕ: если урок покрыт пакетом — считаем оплаченным
+            ls.is_paid = (pkg is not None)
+            
             current_balance = await get_student_balance(db, ls.student_id)
             new_balance = current_balance - price
 
-            # 3. Создаем транзакцию
-            # ИСПРАВЛЕНИЕ 2: Убедись, что в твоем Enum это LESSON_DEBIT или LESSON_DEDUCTION
             txn = Transaction(
                 student_id=ls.student_id,
                 package_id=ls.package_id,
                 lesson_id=lesson.id,
                 amount=-price,
-                type=TransactionType.LESSON_DEBIT,  # <-- Проверь название в своей модели!
+                type=TransactionType.LESSON_DEBIT,
                 balance_after=new_balance,
                 comment=f"Урок {lesson.start_at.strftime('%d.%m %H:%M')}",
                 created_by=f"tutor:{tutor_id}",
             )
             db.add(txn)
-            await db.flush()  # Получаем ID транзакции
-            
-            # ИСПРАВЛЕНИЕ 3: Убедись, что в модели LessonStudent есть поле transaction_id
+            await db.flush()
             ls.transaction_id = txn.id
 
-            # 4. Создаем аудит баланса
             audit = BalanceAuditLog(
                 student_id=ls.student_id,
                 old_balance=current_balance,
@@ -111,8 +95,294 @@ async def complete_lesson(
             processed += 1
 
         elif status in ("CANCELLED", "EXCUSED"):
-            # Урок отменен или пропущен по уважительной причине — не тарифицируем
             ls.price_charged = Decimal("0")
+            ls.is_paid = False  # НОВОЕ
 
     await db.commit()
     return {"processed": processed, "lesson_status": "COMPLETED"}
+
+
+async def revert_lesson_completion(
+    db: AsyncSession,
+    lesson_id: int,
+    student_id: int,
+    new_status: str,
+) -> None:
+    result = await db.execute(
+        select(LessonStudent).where(
+            LessonStudent.lesson_id == lesson_id,
+            LessonStudent.student_id == student_id
+        )
+    )
+    ls_result = result.scalar_one_or_none()
+
+    if not ls_result or ls_result.status not in ("PRESENT", "ABSENT"):
+        if ls_result:
+            ls_result.status = new_status
+        return
+
+    if ls_result.transaction_id:
+        txn_result = await db.execute(
+            select(Transaction).where(Transaction.id == ls_result.transaction_id)
+        )
+        txn = txn_result.scalar_one_or_none()
+
+        if txn and txn.type == TransactionType.LESSON_DEBIT:
+            if ls_result.package_id:
+                pkg_result = await db.execute(
+                    select(Package).where(Package.id == ls_result.package_id)
+                )
+                pkg = pkg_result.scalar_one_or_none()
+                if pkg:
+                    pkg.remaining_lessons += 1
+                    pkg.is_active = True
+
+            current_balance = await get_student_balance(db, student_id)
+            refund_amount = abs(txn.amount)
+            new_balance = current_balance + refund_amount
+
+            refund_txn = Transaction(
+                student_id=student_id,
+                package_id=ls_result.package_id,
+                lesson_id=lesson_id,
+                amount=refund_amount,
+                type=TransactionType.LESSON_REFUND,
+                balance_after=new_balance,
+                comment=f"Возврат за урок (статус изменен на {new_status})",
+                created_by="system:auto_revert",
+            )
+            db.add(refund_txn)
+            await db.flush()
+
+            ls_result.price_charged = Decimal("0")
+            ls_result.transaction_id = refund_txn.id
+            ls_result.is_paid = False  # НОВОЕ: сбрасываем флаг оплаты
+
+    ls_result.status = new_status
+
+
+async def mark_package_as_paid(
+    db: AsyncSession,
+    package_id: int,
+    tutor_id: int,
+) -> dict:
+    pkg_result = await db.execute(select(Package).where(Package.id == package_id))
+    package = pkg_result.scalar_one_or_none()
+    if not package:
+        raise ValueError("Пакет не найден")
+
+    if package.payment_status == "paid":
+        raise ValueError("Пакет уже оплачен")
+
+    total_amount = package.price_per_lesson * package.total_lessons
+    current_balance = await get_student_balance(db, package.student_id)
+    new_balance = current_balance + total_amount
+
+    txn = Transaction(
+        student_id=package.student_id,
+        package_id=package.id,
+        amount=total_amount,
+        type=TransactionType.PACKAGE_PAYMENT,
+        balance_after=new_balance,
+        comment=f"Оплата пакета «{package.name}»",
+        created_by=f"tutor:{tutor_id}",
+    )
+    db.add(txn)
+
+    audit = BalanceAuditLog(
+        student_id=package.student_id,
+        old_balance=current_balance,
+        new_balance=new_balance,
+        delta=total_amount,
+        reason="package_paid",
+        related_entity_type="package",
+        related_entity_id=package.id,
+        created_by=f"tutor:{tutor_id}",
+    )
+    db.add(audit)
+
+    package.payment_status = "paid"
+    await db.commit()
+
+    return {
+        "package_id": package.id,
+        "amount": float(total_amount),
+        "new_balance": float(new_balance),
+    }
+
+
+async def record_student_payment(
+    db: AsyncSession,
+    student_id: int,
+    tutor_id: int,
+    amount: Decimal,
+    comment: str | None = None,
+) -> dict:
+    if amount <= 0:
+        raise ValueError("Сумма должна быть положительной")
+
+    student_result = await db.execute(select(Student).where(Student.id == student_id))
+    student = student_result.scalar_one_or_none()
+    if not student:
+        raise ValueError("Ученик не найден")
+
+    current_balance = await get_student_balance(db, student_id)
+    new_balance = current_balance + amount
+
+    txn = Transaction(
+        student_id=student_id,
+        package_id=None,
+        lesson_id=None,
+        amount=amount,
+        type=TransactionType.MANUAL_ADJUSTMENT,
+        balance_after=new_balance,
+        comment=comment or "Оплата от ученика",
+        created_by=f"tutor:{tutor_id}",
+    )
+    db.add(txn)
+
+    audit = BalanceAuditLog(
+        student_id=student_id,
+        old_balance=current_balance,
+        new_balance=new_balance,
+        delta=amount,
+        reason="manual_payment",
+        related_entity_type="manual_payment",
+        related_entity_id=0,
+        created_by=f"tutor:{tutor_id}",
+    )
+    db.add(audit)
+
+    await db.commit()
+
+    return {
+        "student_id": student_id,
+        "amount": float(amount),
+        "new_balance": float(new_balance),
+    }
+
+
+async def adjust_student_balance(
+    db: AsyncSession,
+    student_id: int,
+    tutor_id: int,
+    amount: Decimal,
+    comment: str | None = None,
+) -> dict:
+    """
+    Корректировка баланса ученика (пополнение или списание).
+    Используется для исправления ошибок.
+    """
+    if amount == 0:
+        raise ValueError("Сумма корректировки не может быть равна 0")
+
+    student_result = await db.execute(select(Student).where(Student.id == student_id))
+    student = student_result.scalar_one_or_none()
+    if not student:
+        raise ValueError("Ученик не найден")
+
+    current_balance = await get_student_balance(db, student_id)
+    new_balance = current_balance + amount
+
+    txn_type = TransactionType.MANUAL_ADJUSTMENT if amount > 0 else TransactionType.MANUAL_DEDUCTION
+
+    txn = Transaction(
+        student_id=student_id,
+        package_id=None,
+        lesson_id=None,
+        amount=amount,
+        type=txn_type,
+        balance_after=new_balance,
+        comment=comment or "Корректировка баланса",
+        created_by=f"tutor:{tutor_id}",
+    )
+    db.add(txn)
+
+    audit = BalanceAuditLog(
+        student_id=student_id,
+        old_balance=current_balance,
+        new_balance=new_balance,
+        delta=amount,
+        reason="manual_adjustment",
+        related_entity_type="manual_adjustment",
+        related_entity_id=0,
+        created_by=f"tutor:{tutor_id}",
+    )
+    db.add(audit)
+
+    await db.commit()
+
+    return {
+        "student_id": student_id,
+        "amount": float(amount),
+        "new_balance": float(new_balance),
+    }
+
+
+async def mark_lesson_students_paid(
+    db: AsyncSession,
+    lesson_id: int,
+    student_ids: list[int],
+    tutor_id: int,
+    amount_per_student: Decimal,
+    comment: str | None = None,
+) -> dict:
+    """
+    Отметить учеников как оплативших урок.
+    Создаёт транзакции MANUAL_ADJUSTMENT и проставляет is_paid = True.
+    """
+    paid_students = []
+    
+    for student_id in student_ids:
+        ls_result = await db.execute(
+            select(LessonStudent).where(
+                LessonStudent.lesson_id == lesson_id,
+                LessonStudent.student_id == student_id,
+            )
+        )
+        ls = ls_result.scalar_one_or_none()
+        if not ls:
+            continue
+        
+        if ls.is_paid:
+            continue  # Уже оплачен
+        
+        current_balance = await get_student_balance(db, student_id)
+        new_balance = current_balance + amount_per_student
+        
+        txn = Transaction(
+            student_id=student_id,
+            package_id=None,
+            lesson_id=lesson_id,
+            amount=amount_per_student,
+            type=TransactionType.MANUAL_ADJUSTMENT,
+            balance_after=new_balance,
+            comment=comment or f"Оплата за урок #{lesson_id}",
+            created_by=f"tutor:{tutor_id}",
+        )
+        db.add(txn)
+        
+        audit = BalanceAuditLog(
+            student_id=student_id,
+            old_balance=current_balance,
+            new_balance=new_balance,
+            delta=amount_per_student,
+            reason="lesson_payment",
+            related_entity_type="lesson",
+            related_entity_id=lesson_id,
+            created_by=f"tutor:{tutor_id}",
+        )
+        db.add(audit)
+        
+        ls.is_paid = True
+        ls.transaction_id = txn.id
+        
+        paid_students.append(student_id)
+    
+    await db.commit()
+    
+    return {
+        "lesson_id": lesson_id,
+        "paid_students": paid_students,
+        "amount_per_student": float(amount_per_student),
+    }

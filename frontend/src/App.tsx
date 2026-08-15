@@ -8,6 +8,7 @@ import LessonsPage from './pages/LessonsPage';
 import PackagesPage from './pages/PackagesPage';
 import StudentsPage from './pages/StudentsPage';
 import CancellationsPage from './pages/CancellationsPage';
+import FinancePage from './pages/FinancePage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('access_token');
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/lessons" element={<LessonsPage />} />
           <Route path="/packages" element={<PackagesPage />} />
           <Route path="/cancellations" element={<CancellationsPage />} />
+          <Route path="/finance" element={<FinancePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

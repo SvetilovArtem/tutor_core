@@ -3,7 +3,7 @@
 import os
 import uuid
 from datetime import date, datetime, timedelta
-from decimal import Decimal  # <-- ДОБАВЛЕНО: критически важно для финансов
+from decimal import Decimal 
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
@@ -21,7 +21,8 @@ from app.models.lesson import Lesson, LessonStudent
 from app.models.homework_attachment import HomeworkAttachment
 from app.schemas.lesson import LessonCreate, LessonResponse, TrialLessonCreate
 from app.services.auth import get_current_tutor
-from app.services.balance_service import complete_lesson
+# ДОБАВЛЕНО: mark_lesson_students_paid
+from app.services.balance_service import complete_lesson, revert_lesson_completion, mark_lesson_students_paid
 from app.services.schedule_validator import check_lesson_time_conflict
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
@@ -66,7 +67,7 @@ async def _enrich_lesson_response(lesson: Lesson, db: AsyncSession) -> LessonRes
         "max_students": lesson.max_students,
         "created_at": lesson.created_at,
         "students": [
-            {"student_id": ls.student_id, "student_name": "", "status": ls.status}
+            {"student_id": ls.student_id, "student_name": "", "status": ls.status, "is_paid": getattr(ls, 'is_paid', False)}
             for ls in lesson.lesson_students
         ],
         "homework_attachments": [
@@ -188,6 +189,7 @@ async def create_lesson(
             student_id=s.student_id,
             package_id=s.package_id,
             status="SCHEDULED",
+            is_paid=False,
         )
         db.add(ls)
 
@@ -251,6 +253,7 @@ async def create_trial_lesson(
         student_id=student.id,
         package_id=None,
         status="SCHEDULED",
+        is_paid=False,
     )
     db.add(ls)
 
@@ -302,13 +305,22 @@ async def complete_lesson_endpoint(
     Завершить урок: обновить статусы, сохранить заметки, списать баланс.
     """
     try:
+        # Берем base_price первого ученика для корректного списания
+        first_student_id = payload.attendance.keys()[0] if payload.attendance else None
+        default_price = Decimal("25")
+        if first_student_id:
+            student_result = await db.execute(select(Student).where(Student.id == first_student_id))
+            student = student_result.scalar_one_or_none()
+            if student:
+                default_price = student.base_price
+
         # 1. Вызываем сервис списания баланса и обновления статусов учеников
         await complete_lesson(
             db=db,
             lesson_id=lesson_id,
             tutor_id=tutor.id,
             attendance=payload.attendance,
-            default_price=Decimal("25"), # TODO: В будущем брать из student.base_price
+            default_price=default_price,
         )
         
         # 2. Сохраняем дополнительные заметки и ДЗ, если они переданы
@@ -342,7 +354,7 @@ async def update_lesson_status(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Изменить статус урока (используется для отмены без списания)."""
+    """Умное изменение статуса: автоматически списывает или возвращает средства."""
     valid_statuses = {"SCHEDULED", "COMPLETED", "CANCELLED"}
     if payload.status not in valid_statuses:
         raise HTTPException(
@@ -351,17 +363,81 @@ async def update_lesson_status(
         )
 
     result = await db.execute(
-        select(Lesson).where(Lesson.id == lesson_id, Lesson.tutor_id == tutor.id)
+        select(Lesson)
+        .where(Lesson.id == lesson_id, Lesson.tutor_id == tutor.id)
+        .options(selectinload(Lesson.lesson_students))
     )
     lesson = result.scalar_one_or_none()
     if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
 
-    lesson.status = payload.status
+    old_status = lesson.status
+    new_status = payload.status
+
+    # СЦЕНАРИЙ 1: Урок был завершен, теперь его отменяют/возвращают в расписание
+    if old_status == "COMPLETED" and new_status != "COMPLETED":
+        for ls in lesson.lesson_students:
+            await revert_lesson_completion(db, lesson.id, ls.student_id, new_status)
+
+    # СЦЕНАРИЙ 2: Урок был в расписании/отменен, теперь его отмечают как завершенный
+    elif old_status != "COMPLETED" and new_status == "COMPLETED":
+        attendance = {ls.student_id: "PRESENT" for ls in lesson.lesson_students}
+        
+        # Берем base_price первого ученика (для групповых — одинаковая цена)
+        first_student_id = lesson.lesson_students[0].student_id if lesson.lesson_students else None
+        default_price = Decimal("25")
+        if first_student_id:
+            student_result = await db.execute(
+                select(Student).where(Student.id == first_student_id)
+            )
+            student = student_result.scalar_one_or_none()
+            if student:
+                default_price = student.base_price
+        
+        await complete_lesson(
+            db=db,
+            lesson_id=lesson.id,
+            tutor_id=tutor.id,
+            attendance=attendance,
+            default_price=default_price,
+        )
+
+    lesson.status = new_status
     await db.commit()
 
     lesson = await _reload_lesson(db, lesson.id)
     return await _enrich_lesson_response(lesson, db)
+
+
+# ── ОПЛАТА ЗА УРОК (НОВОЕ) ────────────────────────────────────
+
+class LessonPaymentRequest(BaseModel):
+    student_ids: list[int]
+    amount: Decimal = Field(..., gt=0)
+    comment: str | None = None
+
+
+@router.post("/{lesson_id}/pay", status_code=200)
+async def pay_lesson(
+    lesson_id: int,
+    payload: LessonPaymentRequest,
+    tutor: Tutor = Depends(get_current_tutor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Отметить учеников как оплативших урок."""
+    result = await db.execute(
+        select(Lesson).where(Lesson.id == lesson_id, Lesson.tutor_id == tutor.id)
+    )
+    lesson = result.scalar_one_or_none()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Урок не найден")
+    
+    if lesson.status != "COMPLETED":
+        raise HTTPException(status_code=400, detail="Оплачивать можно только проведённые уроки")
+    
+    return await mark_lesson_students_paid(
+        db, lesson_id, payload.student_ids, tutor.id, payload.amount, payload.comment
+    )
 
 
 # ── ВЛОЖЕНИЯ (ДЗ) ─────────────────────────────────────────────

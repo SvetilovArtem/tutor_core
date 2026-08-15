@@ -4,6 +4,7 @@ export interface LessonStudent {
   student_id: number;
   student_name: string;
   status: string;
+  is_paid: boolean;  // НОВОЕ
 }
 
 export interface HomeworkAttachment {
@@ -71,4 +72,12 @@ export const lessonsApi = {
   },
   deleteAttachment: (attachmentId: number) =>
     api.delete(`/lessons/attachments/${attachmentId}`),
+  
+  // НОВОЕ: оплата за урок
+  payLesson: (lessonId: number, studentIds: number[], amount: number, comment?: string) =>
+    api.post(`/lessons/${lessonId}/pay`, { 
+      student_ids: studentIds, 
+      amount, 
+      comment 
+    }),
 };

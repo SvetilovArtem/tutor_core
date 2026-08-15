@@ -1,8 +1,8 @@
 """initial_schema
 
-Revision ID: 4a46e36ba048
+Revision ID: 41065b34c8c5
 Revises: 
-Create Date: 2026-08-11 19:21:18.511216
+Create Date: 2026-08-15 08:42:08.737416
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '4a46e36ba048'
+revision: str = '41065b34c8c5'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -49,13 +49,16 @@ def upgrade() -> None:
     op.create_table('tutors',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('telegram_id', sa.Integer(), nullable=True),
+    sa.Column('telegram_id', sa.Integer(), nullable=False),
     sa.Column('phone', sa.String(length=20), nullable=True),
+    sa.Column('email', sa.String(length=255), nullable=True),
+    sa.Column('password_hash', sa.String(length=255), nullable=True),
     sa.Column('subjects', sa.JSON(), nullable=False),
     sa.Column('timezone', sa.String(length=50), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('email')
     )
     op.create_index(op.f('ix_tutors_telegram_id'), 'tutors', ['telegram_id'], unique=True)
     op.create_table('message_templates',
@@ -72,6 +75,21 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_message_templates_tutor_id'), 'message_templates', ['tutor_id'], unique=False)
+    op.create_table('schedule_rules',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('tutor_id', sa.Integer(), nullable=False),
+    sa.Column('group_name', sa.String(length=100), nullable=True),
+    sa.Column('weekday', sa.Integer(), nullable=False),
+    sa.Column('start_time', sa.Time(), nullable=False),
+    sa.Column('duration_minutes', sa.Integer(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('effective_from', sa.Date(), nullable=False),
+    sa.Column('effective_to', sa.Date(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['tutor_id'], ['tutors.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_schedule_rules_tutor_id'), 'schedule_rules', ['tutor_id'], unique=False)
     op.create_table('students',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('parent_id', sa.Integer(), nullable=True),
@@ -80,7 +98,9 @@ def upgrade() -> None:
     sa.Column('phone', sa.String(length=20), nullable=True),
     sa.Column('birth_date', sa.Date(), nullable=True),
     sa.Column('notes', sa.String(length=500), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('base_price', sa.Numeric(precision=10, scale=2), server_default='25.00', nullable=False),
     sa.ForeignKeyConstraint(['parent_id'], ['parents.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('telegram_id')
@@ -123,24 +143,6 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_packages_student_id'), 'packages', ['student_id'], unique=False)
     op.create_index(op.f('ix_packages_tutor_id'), 'packages', ['tutor_id'], unique=False)
-    op.create_table('schedule_rules',
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('tutor_id', sa.Integer(), nullable=False),
-    sa.Column('student_id', sa.Integer(), nullable=True),
-    sa.Column('group_name', sa.String(length=100), nullable=True),
-    sa.Column('weekday', sa.Integer(), nullable=False),
-    sa.Column('start_time', sa.Time(), nullable=False),
-    sa.Column('duration_minutes', sa.Integer(), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('effective_from', sa.Date(), nullable=False),
-    sa.Column('effective_to', sa.Date(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['student_id'], ['students.id'], ),
-    sa.ForeignKeyConstraint(['tutor_id'], ['tutors.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index(op.f('ix_schedule_rules_student_id'), 'schedule_rules', ['student_id'], unique=False)
-    op.create_index(op.f('ix_schedule_rules_tutor_id'), 'schedule_rules', ['tutor_id'], unique=False)
     op.create_table('schedule_exceptions',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('rule_id', sa.Integer(), nullable=False),
@@ -155,6 +157,19 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_schedule_exceptions_rule_id'), 'schedule_exceptions', ['rule_id'], unique=False)
+    op.create_table('schedule_rule_students',
+    sa.Column('rule_id', sa.Integer(), nullable=False),
+    sa.Column('student_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['rule_id'], ['schedule_rules.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('rule_id', 'student_id')
+    )
+    op.create_table('student_subjects',
+    sa.Column('student_id', sa.Integer(), nullable=False),
+    sa.Column('subject', sa.String(length=100), nullable=False),
+    sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('student_id', 'subject')
+    )
     op.create_table('lessons',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('tutor_id', sa.Integer(), nullable=False),
@@ -177,13 +192,43 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_lessons_start_at'), 'lessons', ['start_at'], unique=False)
     op.create_index(op.f('ix_lessons_tutor_id'), 'lessons', ['tutor_id'], unique=False)
+    op.create_table('cancellation_requests',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('lesson_id', sa.Integer(), nullable=False),
+    sa.Column('student_id', sa.Integer(), nullable=False),
+    sa.Column('reason', sa.Text(), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=False),
+    sa.Column('requested_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('resolved_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('resolved_by', sa.Integer(), nullable=True),
+    sa.Column('tutor_comment', sa.Text(), nullable=True),
+    sa.ForeignKeyConstraint(['lesson_id'], ['lessons.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['resolved_by'], ['tutors.id'], ),
+    sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_cancellation_requests_lesson_id'), 'cancellation_requests', ['lesson_id'], unique=False)
+    op.create_index(op.f('ix_cancellation_requests_student_id'), 'cancellation_requests', ['student_id'], unique=False)
+    op.create_table('homework_attachments',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('lesson_id', sa.Integer(), nullable=False),
+    sa.Column('filename', sa.String(length=255), nullable=False),
+    sa.Column('original_name', sa.String(length=255), nullable=False),
+    sa.Column('file_path', sa.String(length=500), nullable=False),
+    sa.Column('mime_type', sa.String(length=100), nullable=False),
+    sa.Column('size_bytes', sa.Integer(), nullable=False),
+    sa.Column('uploaded_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['lesson_id'], ['lessons.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_homework_attachments_lesson_id'), 'homework_attachments', ['lesson_id'], unique=False)
     op.create_table('transactions',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('student_id', sa.Integer(), nullable=False),
     sa.Column('package_id', sa.Integer(), nullable=True),
     sa.Column('lesson_id', sa.Integer(), nullable=True),
     sa.Column('amount', sa.Numeric(precision=10, scale=2), nullable=False),
-    sa.Column('type', sa.Enum('PACKAGE_PAYMENT', 'LESSON_DEBIT', 'SINGLE_PAYMENT', 'DEBT_PAYMENT', 'ADJUSTMENT', 'REFUND', name='transactiontype'), nullable=False),
+    sa.Column('type', sa.Enum('PACKAGE_PAYMENT', 'LESSON_DEBIT', 'LESSON_REFUND', 'MANUAL_ADJUSTMENT', 'MANUAL_DEDUCTION', name='transactiontype'), nullable=False),
     sa.Column('balance_after', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('comment', sa.String(length=300), nullable=True),
     sa.Column('created_by', sa.String(length=30), nullable=False),
@@ -203,52 +248,42 @@ def upgrade() -> None:
     sa.Column('homework_done', sa.Boolean(), nullable=False),
     sa.Column('price_charged', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('transaction_id', sa.Integer(), nullable=True),
+    sa.Column('is_paid', sa.Boolean(), server_default='0', nullable=False),
     sa.ForeignKeyConstraint(['lesson_id'], ['lessons.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['package_id'], ['packages.id'], ),
     sa.ForeignKeyConstraint(['student_id'], ['students.id'], ),
     sa.ForeignKeyConstraint(['transaction_id'], ['transactions.id'], ),
     sa.PrimaryKeyConstraint('lesson_id', 'student_id')
     )
-
-    # === Performance indexes ===
-    op.create_index("idx_transactions_student_created", "transactions", ["student_id", "created_at"])
-    op.create_index("idx_schedule_rules_tutor_active", "schedule_rules", ["tutor_id", "is_active", "effective_from", "effective_to"])
-    op.create_index("idx_schedule_exceptions_rule_date", "schedule_exceptions", ["rule_id", "date"])
-    op.create_index("idx_lessons_start_status", "lessons", ["start_at", "status"])
-    op.create_index("idx_lesson_students_student", "lesson_students", ["student_id", "status"])
-    op.create_index("idx_balance_audit_student", "balance_audit_log", ["student_id", "created_at"])
-    op.create_index("idx_message_templates_tutor_type", "message_templates", ["tutor_id", "type"])
+    # ### end Alembic commands ###
 
 
 def downgrade() -> None:
-    # Drop custom performance indexes first
-    op.drop_index("idx_message_templates_tutor_type", table_name="message_templates")
-    op.drop_index("idx_balance_audit_student", table_name="balance_audit_log")
-    op.drop_index("idx_lesson_students_student", table_name="lesson_students")
-    op.drop_index("idx_lessons_start_status", table_name="lessons")
-    op.drop_index("idx_schedule_exceptions_rule_date", table_name="schedule_exceptions")
-    op.drop_index("idx_schedule_rules_tutor_active", table_name="schedule_rules")
-    op.drop_index("idx_transactions_student_created", table_name="transactions")
-
-    # Then drop tables and autogenerated indexes
+    # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('lesson_students')
     op.drop_index(op.f('ix_transactions_student_id'), table_name='transactions')
     op.drop_index(op.f('ix_transactions_created_at'), table_name='transactions')
     op.drop_table('transactions')
+    op.drop_index(op.f('ix_homework_attachments_lesson_id'), table_name='homework_attachments')
+    op.drop_table('homework_attachments')
+    op.drop_index(op.f('ix_cancellation_requests_student_id'), table_name='cancellation_requests')
+    op.drop_index(op.f('ix_cancellation_requests_lesson_id'), table_name='cancellation_requests')
+    op.drop_table('cancellation_requests')
     op.drop_index(op.f('ix_lessons_tutor_id'), table_name='lessons')
     op.drop_index(op.f('ix_lessons_start_at'), table_name='lessons')
     op.drop_table('lessons')
+    op.drop_table('student_subjects')
+    op.drop_table('schedule_rule_students')
     op.drop_index(op.f('ix_schedule_exceptions_rule_id'), table_name='schedule_exceptions')
     op.drop_table('schedule_exceptions')
-    op.drop_index(op.f('ix_schedule_rules_tutor_id'), table_name='schedule_rules')
-    op.drop_index(op.f('ix_schedule_rules_student_id'), table_name='schedule_rules')
-    op.drop_table('schedule_rules')
     op.drop_index(op.f('ix_packages_tutor_id'), table_name='packages')
     op.drop_index(op.f('ix_packages_student_id'), table_name='packages')
     op.drop_table('packages')
     op.drop_table('tutor_settings')
     op.drop_index(op.f('ix_students_parent_id'), table_name='students')
     op.drop_table('students')
+    op.drop_index(op.f('ix_schedule_rules_tutor_id'), table_name='schedule_rules')
+    op.drop_table('schedule_rules')
     op.drop_index(op.f('ix_message_templates_tutor_id'), table_name='message_templates')
     op.drop_table('message_templates')
     op.drop_index(op.f('ix_tutors_telegram_id'), table_name='tutors')
@@ -257,3 +292,4 @@ def downgrade() -> None:
     op.drop_table('parents')
     op.drop_index(op.f('ix_balance_audit_log_student_id'), table_name='balance_audit_log')
     op.drop_table('balance_audit_log')
+    # ### end Alembic commands ###

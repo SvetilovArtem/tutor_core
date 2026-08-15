@@ -12,17 +12,9 @@ from app.models.transaction import Transaction, TransactionType
 from app.models.balance_audit import BalanceAuditLog
 from app.schemas.package import PackageCreate, PackageUpdate, PackageResponse
 from app.services.auth import get_current_tutor
+from app.services.balance_service import mark_package_as_paid, get_student_balance
 
 router = APIRouter(prefix="/packages", tags=["packages"])
-
-
-async def _get_student_balance(db: AsyncSession, student_id: int) -> Decimal:
-    """Текущий баланс ученика = сумма всех транзакций."""
-    result = await db.execute(
-        select(Transaction.amount).where(Transaction.student_id == student_id)
-    )
-    amounts = [row[0] for row in result.all()]
-    return sum(amounts, Decimal("0"))
 
 
 @router.get("/", response_model=list[PackageResponse])
@@ -47,10 +39,7 @@ async def create_package(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Создать пакет занятий.
-    Если payment_status == 'paid' → автоматически создаёт транзакцию PACKAGE_PAYMENT.
-    """
+    """Создать пакет занятий."""
     package = Package(
         tutor_id=tutor.id,
         student_id=payload.student_id,
@@ -65,9 +54,9 @@ async def create_package(
     db.add(package)
     await db.flush()
 
-    # Если пакет оплачен — создаём транзакцию и аудит баланса
+    # Если пакет сразу оплачен — создаём транзакцию
     if payload.payment_status == "paid":
-        current_balance = await _get_student_balance(db, payload.student_id)
+        current_balance = await get_student_balance(db, payload.student_id)
         total_amount = payload.price_per_lesson * payload.total_lessons
         new_balance = current_balance + total_amount
 
@@ -151,3 +140,26 @@ async def delete_package(
 
     await db.delete(package)
     await db.commit()
+
+
+# ── НОВЫЙ ЭНДПОИНТ: ОПЛАТА ПАКЕТА ─────────────────────────────
+
+
+@router.post("/{package_id}/pay", status_code=200)
+async def pay_package(
+    package_id: int,
+    tutor: Tutor = Depends(get_current_tutor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Отметить пакет как оплаченный."""
+    result = await db.execute(
+        select(Package).where(Package.id == package_id, Package.tutor_id == tutor.id)
+    )
+    package = result.scalar_one_or_none()
+    if not package:
+        raise HTTPException(status_code=404, detail="Пакет не найден")
+
+    try:
+        return await mark_package_as_paid(db, package_id, tutor.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

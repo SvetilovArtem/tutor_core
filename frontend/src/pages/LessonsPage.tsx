@@ -7,10 +7,11 @@ import Icon from '../components/Icon';
 import StatusBadge from '../components/StatusBadge';
 import HomeworkUploader from '../components/HomeworkUploader';
 import StudentMultiSelect from '../components/StudentMultiSelect';
+import DateRangeField from '../components/DateRangeField';
+import StatusDropdownPortal from '../components/StatusDropdownPortal';
 import { lessonsApi, type Lesson } from '../api/lessons';
 import { studentsApi, type Student } from '../api/students';
 import styles from './LessonsPage.module.css';
-import DateRangeField from '../components/DateRangeField';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },
@@ -23,18 +24,24 @@ export default function LessonsPage() {
   const [searchParams] = useSearchParams();
   const highlightId = searchParams.get('highlight');
 
+  const [anchorButton, setAnchorButton] = useState<HTMLButtonElement | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [openStatusId, setOpenStatusId] = useState<number | null>(null);
   const highlightedRef = useRef<HTMLTableRowElement>(null);
 
-  // Фильтры
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterStudentIds, setFilterStudentIds] = useState<number[]>([]);
   const [showCancelled, setShowCancelled] = useState(false);
+
+  const [paymentLesson, setPaymentLesson] = useState<Lesson | null>(null);
+  const [paymentStudentIds, setPaymentStudentIds] = useState<number[]>([]);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentComment, setPaymentComment] = useState('');
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   useEffect(() => {
     studentsApi.list().then((r) => setStudents(r.data)).catch(() => {});
@@ -123,6 +130,64 @@ export default function LessonsPage() {
       setLessons((prev) => prev.filter((l) => l.id !== id));
     } catch {
       toast.error('Ошибка восстановления');
+    }
+  };
+
+  const openPaymentModal = (lesson: Lesson) => {
+    setPaymentLesson(lesson);
+    setPaymentStudentIds(
+      lesson.students.filter((s) => !s.is_paid).map((s) => s.student_id)
+    );
+    setPaymentAmount('');
+    setPaymentComment(`Оплата за урок ${format(new Date(lesson.start_at), 'dd.MM.yyyy')}`);
+  };
+
+  const togglePaymentStudent = (studentId: number) => {
+    setPaymentStudentIds((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId],
+    );
+  };
+
+  const handleLessonPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentLesson || !paymentAmount || paymentStudentIds.length === 0) return;
+    setProcessingPayment(true);
+    try {
+      const amount = Number(paymentAmount);
+      const comment = paymentComment || 'Оплата за урок';
+
+      await lessonsApi.payLesson(
+        paymentLesson.id,
+        paymentStudentIds,
+        amount,
+        comment,
+      );
+
+      toast.success(`Оплата зафиксирована для ${paymentStudentIds.length} учеников`);
+      
+      setLessons((prev) =>
+        prev.map((l) => {
+          if (l.id !== paymentLesson.id) return l;
+          return {
+            ...l,
+            students: l.students.map((s) => ({
+              ...s,
+              is_paid: paymentStudentIds.includes(s.student_id) ? true : s.is_paid,
+            })),
+          };
+        }),
+      );
+      
+      setPaymentLesson(null);
+      setPaymentStudentIds([]);
+      setPaymentAmount('');
+      setPaymentComment('');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка оплаты');
+    } finally {
+      setProcessingPayment(false);
     }
   };
 
@@ -232,6 +297,9 @@ export default function LessonsPage() {
               {lessons.map((l) => {
                 const isHighlighted = String(l.id) === highlightId;
                 const isCancelled = l.status === 'CANCELLED';
+                const isCompleted = l.status === 'COMPLETED';
+                const hasUnpaid = isCompleted && l.students.some((s) => !s.is_paid);
+                
                 return (
                   <tr
                     key={l.id}
@@ -246,43 +314,31 @@ export default function LessonsPage() {
                     <td>
                       <div className={styles.studentsList}>
                         {l.students.map((s) => (
-                          <span key={s.student_id} className={styles.studentChip}>
+                          <span 
+                            key={s.student_id} 
+                            className={`${styles.studentChip} ${s.is_paid ? styles.studentPaid : ''}`}
+                          >
                             {s.student_name}
                           </span>
                         ))}
                       </div>
                     </td>
+                    
+                    {/* ИСПРАВЛЕННАЯ ЯЧЕЙКА СТАТУСА: только кнопка с ref, без встроенного дропдауна */}
                     <td>
-                      <div className={styles.statusWrapper}>
-                        <button
-                          className={styles.statusBtn}
-                          onClick={() => setOpenStatusId(openStatusId === l.id ? null : l.id)}
-                        >
-                          <StatusBadge status={l.status} type="lesson" />
-                        </button>
-                        {openStatusId === l.id && (
-                          <>
-                            <div
-                              className={styles.statusOverlay}
-                              onClick={() => setOpenStatusId(null)}
-                            />
-                            <div className={styles.statusDropdown}>
-                              {STATUS_OPTIONS.filter((opt) => opt.value).map((opt) => (
-                                <button
-                                  key={opt.value}
-                                  className={`${styles.statusOption} ${
-                                    l.status === opt.value ? styles.statusOptionActive : ''
-                                  }`}
-                                  onClick={() => handleStatusChange(l.id, opt.value)}
-                                >
-                                  <StatusBadge status={opt.value} type="lesson" />
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <button
+                        ref={(el) => {
+                          if (openStatusId === l.id) {
+                            setAnchorButton(el);
+                          }
+                        }}
+                        className={styles.statusBtn}
+                        onClick={() => setOpenStatusId(openStatusId === l.id ? null : l.id)}
+                      >
+                        <StatusBadge status={l.status} type="lesson" />
+                      </button>
                     </td>
+
                     <td>
                       <div className={styles.homeworkContent}>
                         {l.homework_text && (
@@ -306,6 +362,24 @@ export default function LessonsPage() {
                         >
                           <Icon name="refresh" size={14} />
                         </button>
+                      ) : isCompleted ? (
+                        hasUnpaid ? (
+                          <button
+                            className={styles.payBtn}
+                            onClick={() => openPaymentModal(l)}
+                            title="Есть неоплаченные ученики"
+                          >
+                            <Icon name="wallet" size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            className={styles.paidBtn}
+                            title="Все ученики оплатили"
+                            disabled
+                          >
+                            <Icon name="check" size={14} />
+                          </button>
+                        )
                       ) : (
                         <button
                           className={styles.deleteBtn}
@@ -323,6 +397,103 @@ export default function LessonsPage() {
           </table>
         )}
       </div>
+
+      {/* ПОРТАЛ ДЛЯ ДРОПДАУНА (рендерится вне таблицы, в корне DOM) */}
+      {openStatusId !== null && (
+        <StatusDropdownPortal
+          anchorRef={anchorButton}
+          currentStatus={lessons.find((l) => l.id === openStatusId)?.status || ''}
+          onSelect={(newStatus) => {
+            if (openStatusId !== null) {
+              handleStatusChange(openStatusId, newStatus);
+            }
+          }}
+          onClose={() => setOpenStatusId(null)}
+        />
+      )}
+
+      {/* МОДАЛКА ОПЛАТЫ */}
+      {paymentLesson && (
+        <div className={styles.modalOverlay} onClick={() => setPaymentLesson(null)}>
+          <form
+            className={styles.modal}
+            onSubmit={handleLessonPayment}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className={styles.modalTitle}>Ученик оплатил урок</h2>
+            <p className={styles.modalHint}>
+              {format(new Date(paymentLesson.start_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
+            </p>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Ученики, которые оплатили</label>
+              <div className={styles.studentCheckboxes}>
+                {paymentLesson.students.map((s) => (
+                  <label key={s.student_id} className={styles.studentCheckbox}>
+                    <input
+                      type="checkbox"
+                      checked={paymentStudentIds.includes(s.student_id)}
+                      onChange={() => togglePaymentStudent(s.student_id)}
+                      disabled={s.is_paid}
+                    />
+                    <span>{s.student_name} {s.is_paid && '(уже оплачен)'}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Сумма за каждого (BYN) *</label>
+              <input
+                className={styles.input}
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Комментарий</label>
+              <input
+                className={styles.input}
+                value={paymentComment}
+                onChange={(e) => setPaymentComment(e.target.value)}
+                placeholder="Наличные, перевод и т.д."
+              />
+            </div>
+
+            {paymentStudentIds.length > 0 && paymentAmount && (
+              <div className={styles.paymentSummary}>
+                Итого: <strong>{(Number(paymentAmount) * paymentStudentIds.length).toFixed(2)} BYN</strong>
+                <span className={styles.paymentSummaryHint}>
+                  ({paymentStudentIds.length} × {Number(paymentAmount).toFixed(2)} BYN)
+                </span>
+              </div>
+            )}
+
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={() => setPaymentLesson(null)}
+              >
+                Отмена
+              </button>
+              <button
+                type="submit"
+                className={styles.submitBtn}
+                disabled={processingPayment || paymentStudentIds.length === 0}
+              >
+                {processingPayment ? 'Обработка...' : 'Зафиксировать оплату'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

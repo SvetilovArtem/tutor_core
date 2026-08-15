@@ -32,6 +32,7 @@ class LessonStudentResponse(BaseModel):
     student_id: int
     student_name: str
     status: str
+    is_paid: bool = False
 
     class Config:
         from_attributes = True

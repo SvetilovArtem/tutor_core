@@ -6,14 +6,12 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
 
-
-class TransactionType(str, enum.Enum):
-    PACKAGE_PAYMENT = "package_payment"
-    LESSON_DEBIT = "lesson_debit"
-    SINGLE_PAYMENT = "single_payment"
-    DEBT_PAYMENT = "debt_payment"
-    ADJUSTMENT = "adjustment"
-    REFUND = "refund"
+class TransactionType(enum.Enum):
+    PACKAGE_PAYMENT = "PACKAGE_PAYMENT"
+    LESSON_DEBIT = "LESSON_DEBIT"
+    LESSON_REFUND = "LESSON_REFUND"
+    MANUAL_ADJUSTMENT = "MANUAL_ADJUSTMENT"   
+    MANUAL_DEDUCTION = "MANUAL_DEDUCTION" 
 
 class Transaction(Base):
     __tablename__ = "transactions"

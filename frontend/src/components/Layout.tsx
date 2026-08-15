@@ -10,6 +10,7 @@ const navItems = [
   { to: '/lessons', label: 'Уроки', icon: 'book' },
   { to: '/cancellations', label: 'Отмены', icon: 'alert' },
   { to: '/packages', label: 'Пакеты', icon: 'ticket' },
+  { to: '/finance', label: 'Финансы', icon: 'wallet' }
 ];
 
 export default function Layout() {

@@ -12,7 +12,6 @@ export default function PackagesPage() {
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // Форма
   const [formStudentId, setFormStudentId] = useState('');
   const [formName, setFormName] = useState('');
   const [formTotal, setFormTotal] = useState('');
@@ -41,6 +40,7 @@ export default function PackagesPage() {
         total_lessons: Number(formTotal),
         price_per_lesson: Number(formPrice),
         duration_minutes: Number(formDuration),
+        payment_status: 'unpaid', // По умолчанию неоплачен
       });
       toast.success('Пакет создан');
       setShowModal(false);
@@ -58,6 +58,18 @@ export default function PackagesPage() {
       toast.success('Пакет удалён');
       setPackages((prev) => prev.filter((p) => p.id !== id));
     } catch { toast.error('Ошибка удаления'); }
+  };
+
+  const handlePayPackage = async (pkg: Package) => {
+    const totalAmount = (pkg.price_per_lesson * pkg.total_lessons).toFixed(2);
+    if (!confirm(`Отметить пакет "${pkg.name}" как оплаченный?\nСумма: ${totalAmount} BYN`)) return;
+    try {
+      await packagesApi.pay(pkg.id);
+      toast.success('Оплата зафиксирована, баланс ученика обновлён');
+      loadData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка оплаты');
+    }
   };
 
   if (loading) return <div className={styles.empty}>Загрузка...</div>;
@@ -79,8 +91,8 @@ export default function PackagesPage() {
             <div key={pkg.id} className={styles.card}>
               <div className={styles.cardHeader}>
                 <h3 className={styles.cardTitle}>{pkg.name}</h3>
-                <span className={`${styles.badge} ${pkg.is_active ? styles.badgeActive : styles.badgeInactive}`}>
-                  {pkg.is_active ? 'Активен' : 'Неактивен'}
+                <span className={`${styles.badge} ${pkg.payment_status === 'paid' ? styles.badgeActive : styles.badgeInactive}`}>
+                  {pkg.payment_status === 'paid' ? 'Оплачен' : 'Не оплачен'}
                 </span>
               </div>
               <div className={styles.cardBody}>
@@ -102,12 +114,13 @@ export default function PackagesPage() {
                   <span className={styles.cardLabel}>Длительность</span>
                   <span className={styles.cardValue}>{pkg.duration_minutes} мин</span>
                 </div>
-                <div className={styles.cardRow}>
-                  <span className={styles.cardLabel}>Статус оплаты</span>
-                  <span className={styles.cardValue}>{pkg.payment_status}</span>
-                </div>
               </div>
               <div className={styles.cardFooter}>
+                {pkg.payment_status !== 'paid' && (
+                  <button className={styles.payBtn} onClick={() => handlePayPackage(pkg)}>
+                    <Icon name="check" size={14} /> Оплатить
+                  </button>
+                )}
                 <button className={styles.deleteBtn} onClick={() => handleDelete(pkg.id)}>
                   <Icon name="trash" size={14} /> Удалить
                 </button>
@@ -125,7 +138,7 @@ export default function PackagesPage() {
               <label className={styles.label}>Ученик *</label>
               <select className={styles.input} value={formStudentId} onChange={(e) => setFormStudentId(e.target.value)} required>
                 <option value="">Выберите ученика</option>
-                {students.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {students.filter(s => s.is_active).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div className={styles.formGroup}>

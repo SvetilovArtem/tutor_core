@@ -28,6 +28,7 @@ from app.models.cancellation_request import CancellationRequest
 from app.models.homework_attachment import HomeworkAttachment
 from app.models.transaction import Transaction
 from app.models.balance_audit import BalanceAuditLog
+from app.models.student_invite import StudentInviteCode
 
 # this is the Alembic Config object
 config = context.config

@@ -1,5 +1,4 @@
 /* ── Page Layout ─────────────────────────────────────────────── */
-
 .page {
   display: flex;
   flex-direction: column;
@@ -38,7 +37,6 @@
 }
 
 /* ── Search ──────────────────────────────────────────────────── */
-
 .searchWrapper {
   position: relative;
   width: 360px;
@@ -71,7 +69,6 @@
 }
 
 /* ── Table ───────────────────────────────────────────────────── */
-
 .tableWrapper {
   background: var(--bg-card);
   border-radius: var(--border-radius-md);
@@ -150,8 +147,37 @@
   color: var(--text-muted);
 }
 
-/* ── Subject Tags (в таблице) ────────────────────────────────── */
+/* ── Balance Column ──────────────────────────────────────────── */
+.balanceHeader {
+  text-align: right;
+  padding-right: var(--spacing-lg);
+}
 
+.balanceCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-right: var(--spacing-lg);
+}
+
+.balanceValue {
+  font-weight: 700;
+  font-size: var(--font-size-md);
+}
+
+.balanceNegative {
+  color: var(--color-danger);
+}
+
+.balancePositive {
+  color: var(--color-success);
+}
+
+.balanceZero {
+  color: var(--text-main);
+}
+
+/* ── Subject Tags ────────────────────────────────────────────── */
 .subjectTags {
   display: flex;
   gap: 4px;
@@ -173,9 +199,7 @@
 }
 
 /* ── Action Buttons ──────────────────────────────────────────── */
-
-.editBtn,
-.deleteBtn {
+.actionBtn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -189,20 +213,31 @@
   transition: all var(--transition);
 }
 
-.editBtn:hover {
+.actionBtn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
   background: rgba(99, 102, 241, 0.08);
 }
 
-.deleteBtn:hover {
+.deactivateBtn:hover {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.activateBtn:hover {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.deleteActionBtn:hover {
   border-color: var(--color-danger);
   color: var(--color-danger);
   background: rgba(239, 68, 68, 0.08);
 }
 
 /* ── Empty State ─────────────────────────────────────────────── */
-
 .empty {
   padding: calc(var(--spacing-xl) * 2);
   text-align: center;
@@ -211,7 +246,6 @@
 }
 
 /* ── Modal ───────────────────────────────────────────────────── */
-
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -257,7 +291,6 @@
 }
 
 /* ── Form Elements ───────────────────────────────────────────── */
-
 .formGroup {
   display: flex;
   flex-direction: column;
@@ -294,8 +327,7 @@
   min-height: 80px;
 }
 
-/* ── Subject Chips (в форме) ─────────────────────────────────── */
-
+/* ── Subject Chips ───────────────────────────────────────────── */
 .subjectChips {
   display: flex;
   gap: var(--spacing-xs);
@@ -339,7 +371,6 @@
 }
 
 /* ── Modal Actions ───────────────────────────────────────────── */
-
 .modalActions {
   display: flex;
   gap: var(--spacing-sm);
@@ -404,7 +435,10 @@
   min-width: 160px;
   transition: border-color var(--transition);
 }
-.filterSelect:focus { border-color: var(--color-primary); }
+
+.filterSelect:focus {
+  border-color: var(--color-primary);
+}
 
 /* ── Sortable Headers ────────────────────────────────────────── */
 .sortableTh {
@@ -413,10 +447,21 @@
   white-space: nowrap;
   transition: color var(--transition);
 }
-.sortableTh:hover { color: var(--color-primary); }
 
-.sortIcon { margin-left: 4px; font-weight: 700; color: var(--color-primary); }
-.sortIconPlaceholder { margin-left: 4px; opacity: 0.3; }
+.sortableTh:hover {
+  color: var(--color-primary);
+}
+
+.sortIcon {
+  margin-left: 4px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.sortIconPlaceholder {
+  margin-left: 4px;
+  opacity: 0.3;
+}
 
 /* ── Status Badge ────────────────────────────────────────────── */
 .statusBadge {
@@ -428,118 +473,65 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
-.statusActive { background: rgba(34,197,94,0.12); color: var(--color-success); }
-.statusInactive { background: rgba(107,114,128,0.12); color: var(--text-muted); }
+
+.statusActive {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--color-success);
+}
+
+.statusInactive {
+  background: rgba(107, 114, 128, 0.12);
+  color: var(--text-muted);
+}
 
 /* ── Inactive Row ────────────────────────────────────────────── */
-.inactiveRow td { opacity: 0.5; }
-.inactiveRow:hover td { opacity: 0.8; }
-
-/* ── Action Buttons ──────────────────────────────────────────── */
-.actionBtn {
-  display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px;
-  background: none; border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm); color: var(--text-secondary);
-  cursor: pointer; transition: all var(--transition);
-}
-.actionBtn:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(99,102,241,0.08); }
-
-.deactivateBtn:hover { border-color: var(--color-warning); color: var(--color-warning); background: rgba(245,158,11,0.08); }
-.activateBtn:hover { border-color: var(--color-success); color: var(--color-success); background: rgba(34,197,94,0.08); }
-.deleteActionBtn:hover { border-color: var(--color-danger); color: var(--color-danger); background: rgba(239,68,68,0.08); }
-
-/* ── Balance Column ──────────────────────────────────────────── */
-.balanceCell {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  padding-right: var(--spacing-lg);
+.inactiveRow td {
+  opacity: 0.5;
 }
 
-.balanceValue {
-  font-weight: 700;
-  font-size: var(--font-size-md);
+.inactiveRow:hover td {
+  opacity: 0.8;
 }
 
-.balanceNegative {
-  color: var(--color-danger);
-}
-
-.balancePositive {
-  color: var(--color-success);
-}
-
-.balanceZero {
-  color: var(--text-main);
-}
-
-/* ── Payment Action Button ───────────────────────────────────── */
-.payActionBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: var(--color-primary);
-  border: 1px solid var(--color-primary);
+/* ── Invite Code Box (НОВОЕ) ─────────────────────────────────── */
+.inviteCodeBox {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px dashed var(--color-primary);
   border-radius: var(--border-radius-sm);
-  color: #fff;
-  cursor: pointer;
-  transition: all var(--transition);
+  padding: 16px;
+  text-align: center;
+  margin-top: 8px;
+  animation: fadeIn 0.3s ease;
 }
 
-.payActionBtn:hover {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+.inviteCodeBox p {
+  margin: 0 0 12px 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
-/* ── Balance Column ──────────────────────────────────────────── */
-.balanceHeader {
-  text-align: right;
-  padding-right: var(--spacing-lg);
-}
-
-.balanceCell {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  padding-right: var(--spacing-lg);
-}
-
-.balanceValue {
+.codeText {
+  display: block;
+  font-size: var(--font-size-xl);
   font-weight: 700;
-  font-size: var(--font-size-md);
+  color: var(--color-primary);
+  letter-spacing: 3px;
+  margin-bottom: 12px;
+  font-family: monospace;
 }
 
-.balanceNegative {
-  color: var(--color-danger);
-}
-
-.balancePositive {
-  color: var(--color-success);
-}
-
-.balanceZero {
-  color: var(--text-main);
-}
-
-/* ── Payment Action Button ───────────────────────────────────── */
-.payActionBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
+.copyBtn {
   background: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--border-radius-sm);
   color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: var(--border-radius-sm);
   cursor: pointer;
-  transition: all var(--transition);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  transition: background var(--transition);
 }
 
-.payActionBtn:hover {
+.copyBtn:hover {
   background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
 }

@@ -5,7 +5,7 @@ export interface Student {
   name: string;
   parent_id: number | null;
   phone: string | null;
-  email: string | null;       
+  email: string | null;
   telegram_id: number | null;
   birth_date: string | null;
   base_price: number | string;
@@ -26,10 +26,10 @@ export interface StudentsListParams {
 export interface StudentCreate {
   name: string;
   phone?: string;
-  email?: string;              
-  telegram_id?: number;        
-  birth_date?: string;        
-  base_price?: number;         
+  email?: string;
+  telegram_id?: number;
+  birth_date?: string;
+  base_price?: number;
   notes?: string;
   subjects?: string[];
 }
@@ -48,4 +48,12 @@ export const studentsApi = {
   
   adjustBalance: (id: number, amount: number, comment?: string) =>
     api.post(`/students/${id}/adjust`, { amount, comment }),
+
+  generateInviteCode: (studentId: number) => 
+    api.post<{ code: string; expires_at: string; student_name: string }>(`/api/bot/invite/${studentId}`, {}, {
+      headers: {
+
+        'X-Bot-Token': import.meta.env.VITE_BOT_TOKEN || 'your-bot-token-here'
+      }
+    }),
 };

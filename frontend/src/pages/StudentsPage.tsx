@@ -43,6 +43,10 @@ export default function StudentsPage() {
   const [deductComment, setDeductComment] = useState('Ошибочное начисление');
   const [processingDeduct, setProcessingDeduct] = useState(false);
 
+  // НОВОЕ: Состояние для кода привязки бота
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false);
+
   const loadStudents = useCallback(() => {
     setLoading(true);
     const params: StudentsListParams = {};
@@ -91,6 +95,7 @@ export default function StudentsPage() {
     setFormSubjects([]);
     setEditingId(null);
     setFormBasePrice('25');
+    setInviteCode(null); // Сбрасываем код при закрытии
   };
 
   const openCreate = () => { resetForm(); setShowModal(true); };
@@ -104,6 +109,7 @@ export default function StudentsPage() {
     setFormSubjects([...s.subjects]);
     setEditingId(s.id);
     setFormBasePrice(String(s.base_price || 25));
+    setInviteCode(null); // Сбрасываем старый код при открытии нового ученика
     setShowModal(true);
   };
 
@@ -186,6 +192,20 @@ export default function StudentsPage() {
       toast.error(err.response?.data?.detail || 'Ошибка списания');
     } finally {
       setProcessingDeduct(false);
+    }
+  };
+
+  // НОВОЕ: Обработчик генерации кода
+  const handleGenerateInviteCode = async (studentId: number) => {
+    setGeneratingCode(true);
+    try {
+      const res = await studentsApi.generateInviteCode(studentId);
+      setInviteCode(res.data.code);
+      toast.success('Код успешно сгенерирован!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка генерации кода');
+    } finally {
+      setGeneratingCode(false);
     }
   };
 
@@ -317,7 +337,6 @@ export default function StudentsPage() {
               <input className={styles.input} value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="+375..." />
             </div>
 
-            {/* НОВОЕ: Email */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Email</label>
               <input 
@@ -329,19 +348,50 @@ export default function StudentsPage() {
               />
             </div>
 
-            {/* НОВОЕ: Telegram ID (числовой, как в модели) */}
+            {/* НОВОЕ: Telegram ID + Кнопка генерации кода */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Telegram ID</label>
-              <input 
-                className={styles.input} 
-                type="number"
-                value={formTelegramId} 
-                onChange={(e) => setFormTelegramId(e.target.value)} 
-                placeholder="123456789" 
-              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input 
+                  className={styles.input} 
+                  type="number"
+                  value={formTelegramId} 
+                  onChange={(e) => setFormTelegramId(e.target.value)} 
+                  placeholder="123456789" 
+                  style={{ flex: 1 }}
+                />
+                {editingId && (
+                  <button 
+                    type="button" 
+                    className={styles.submitBtn} 
+                    style={{ padding: '0 16px', whiteSpace: 'nowrap' }}
+                    onClick={() => handleGenerateInviteCode(editingId)}
+                    disabled={generatingCode}
+                  >
+                    {generatingCode ? '...' : '🔗 Код для бота'}
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* НОВОЕ: Дата рождения */}
+            {/* НОВОЕ: Блок отображения сгенерированного кода */}
+            {inviteCode && (
+              <div className={styles.inviteCodeBox}>
+                <p>Отправьте этот код ученику для привязки к боту:</p>
+                <code className={styles.codeText}>{inviteCode}</code>
+                <button 
+                  type="button" 
+                  className={styles.copyBtn}
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteCode);
+                    toast.success('Код скопирован в буфер обмена!');
+                  }}
+                >
+                  Скопировать
+                </button>
+              </div>
+            )}
+
             <div className={styles.formGroup}>
               <label className={styles.label}>Дата рождения</label>
               <input 
@@ -352,7 +402,6 @@ export default function StudentsPage() {
               />
             </div>
 
-            {/* Стоимость урока */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Стоимость урока (BYN) *</label>
               <input

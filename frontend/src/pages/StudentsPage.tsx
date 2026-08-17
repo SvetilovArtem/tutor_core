@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import Icon from '../components/Icon';
 import StatusBadge from '../components/StatusBadge';
+import Pagination from '../components/Pagination'; 
 import { studentsApi, type Student, type StudentCreate, type StudentsListParams } from '../api/students';
 import { tutorsApi } from '../api/tutors';
 import styles from './StudentsPage.module.css';
@@ -18,6 +19,10 @@ export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [tutorSubjects, setTutorSubjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(25); 
+  const [totalPages, setTotalPages] = useState(1);
 
   const [search, setSearch] = useState('');
   const [filterSubject, setFilterSubject] = useState('');
@@ -48,7 +53,10 @@ export default function StudentsPage() {
 
   const loadStudents = useCallback(() => {
     setLoading(true);
-    const params: StudentsListParams = {};
+    const params: StudentsListParams = {
+      page: currentPage,    
+      limit: limit,         
+    };
     if (search.trim()) params.search = search.trim();
     if (filterSubject) params.subject = filterSubject;
     if (filterActive !== '') params.is_active = filterActive === true;
@@ -56,10 +64,13 @@ export default function StudentsPage() {
     params.sort_order = sort.order;
 
     studentsApi.list(params)
-      .then((r) => setStudents(r.data))
+      .then((r) => {
+        setStudents(r.data.items);          
+        setTotalPages(r.data.total_pages);  
+      })
       .catch(() => toast.error('Ошибка загрузки'))
       .finally(() => setLoading(false));
-  }, [search, filterSubject, filterActive, sort]);
+  }, [search, filterSubject, filterActive, sort, currentPage, limit]); 
 
   useEffect(() => {
     tutorsApi.getMe().then((r) => setTutorSubjects(r.data.subjects || [])).catch(() => {});
@@ -67,12 +78,15 @@ export default function StudentsPage() {
 
   useEffect(() => { loadStudents(); }, [loadStudents]);
 
+  // Дебаунс для поиска с сбросом на 1 страницу
   useEffect(() => {
+    setCurrentPage(1); // Сбрасываем на первую страницу при изменении поиска
     const timer = setTimeout(() => loadStudents(), 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search]); // Убрали loadStudents из зависимостей, чтобы не триггерить лишний раз
 
   const handleSort = (field: SortField) => {
+    setCurrentPage(1); // Сброс страницы при сортировке
     setSort((prev) => ({
       field,
       order: prev.field === field && prev.order === 'asc' ? 'desc' : 'asc',
@@ -184,7 +198,7 @@ export default function StudentsPage() {
     try {
       await studentsApi.delete(id);
       toast.success('Ученик удалён');
-      setStudents((prev) => prev.filter((s) => s.id !== id));
+      loadStudents(); // Лучше перезагрузить, чем фильтровать локально, чтобы синхронизировать пагинацию
     } catch { toast.error('Ошибка удаления'); }
   };
 
@@ -224,6 +238,17 @@ export default function StudentsPage() {
     }
   };
 
+  // Хелперы для сброса страницы при смене фильтров
+  const handleSubjectFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterSubject(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleActiveFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFilterActive(e.target.value === '' ? '' : e.target.value === 'true');
+    setCurrentPage(1);
+  };
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -243,11 +268,11 @@ export default function StudentsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select className={styles.filterSelect} value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)}>
+        <select className={styles.filterSelect} value={filterSubject} onChange={handleSubjectFilterChange}>
           <option value="">Все предметы</option>
           {tutorSubjects.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className={styles.filterSelect} value={String(filterActive)} onChange={(e) => setFilterActive(e.target.value === '' ? '' : e.target.value === 'true')}>
+        <select className={styles.filterSelect} value={String(filterActive)} onChange={handleActiveFilterChange}>
           <option value="">Все статусы</option>
           <option value="true">Активные</option>
           <option value="false">Неактивные</option>
@@ -341,6 +366,34 @@ export default function StudentsPage() {
         )}
       </div>
 
+      {/* ── ПАГИНАЦИЯ ───────────────────────────────────────────── */}
+      {!loading && students.length > 0 && (
+        <div className={styles.paginationWrapper}>
+          <div className={styles.limitSelector}>
+            <label>Показывать по:</label>
+            <select 
+              className={styles.limitSelect}
+              value={limit} 
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setCurrentPage(1); // Сброс на 1 страницу при смене лимита
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+          
+          <Pagination 
+            currentPage={currentPage} 
+            totalPages={totalPages} 
+            onPageChange={setCurrentPage} 
+          />
+        </div>
+      )}
+
       {/* МОДАЛКА СОЗДАНИЯ / РЕДАКТИРОВАНИЯ */}
       {showModal && (
         <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
@@ -379,7 +432,6 @@ export default function StudentsPage() {
                   placeholder="123456789" 
                   style={{ flex: 1 }}
                 />
-                {/* Кнопка показывается ТОЛЬКО при редактировании существующего ученика */}
                 {editingId && (
                   <button 
                     type="button" 
@@ -394,7 +446,6 @@ export default function StudentsPage() {
               </div>
             </div>
 
-            {/* Блок отображения сгенерированного кода */}
             {inviteCode && (
               <div className={styles.inviteCodeBox}>
                 <p>Отправьте этот код ученику для привязки к боту:</p>
@@ -435,7 +486,6 @@ export default function StudentsPage() {
               />
             </div>
 
-            {/* Динамический список предметов с ценами */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Предметы и стоимость *</label>
               {formSubjects.map((subj, index) => (

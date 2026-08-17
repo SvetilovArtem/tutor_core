@@ -1,10 +1,19 @@
 import api from './client';
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
 
 export interface LessonStudent {
   student_id: number;
   student_name: string;
   status: string;
-  is_paid: boolean;  // НОВОЕ
+  package_id?: number | null;
+  price_charged?: number | null;
+  is_paid?: boolean;
 }
 
 export interface HomeworkAttachment {
@@ -15,71 +24,84 @@ export interface HomeworkAttachment {
   size_bytes: number;
   url: string;
   is_image: boolean;
-  uploaded_at: string;
+  uploaded_at: string | null;
 }
 
 export interface Lesson {
   id: number;
   tutor_id: number;
-  schedule_rule_id: number | null;
-  exception_id: number | null;
+  schedule_rule_id?: number | null;
+  exception_id?: number | null;
   start_at: string;
   end_at: string;
   status: string;
-  meeting_url: string | null;
-  homework_text: string | null;
-  tutor_notes: string | null;
-  materials_url: string | null;
-  recording_url: string | null;
-  max_students: number | null;
+  subject?: string | null;
+  meeting_url?: string | null;
+  homework_text?: string | null;
+  tutor_notes?: string | null;
+  materials_url?: string | null;
+  recording_url?: string | null;
+  max_students?: number | null;
   created_at: string;
   students: LessonStudent[];
   homework_attachments: HomeworkAttachment[];
 }
 
-export interface LessonsFilter {
-  date_from?: string;
-  date_to?: string;
-  status?: string;
-  student_ids?: number[];
+export interface LessonCreate {
+  start_at: string;
+  duration_minutes: number;
+  subject?: string;
+  students: { student_id: number; package_id?: number }[];
+  meeting_url?: string;
+  homework_text?: string;
+  max_students?: number;
+}
+
+export interface TrialLessonCreate {
+  student_name: string;
+  parent_name?: string;
+  parent_phone?: string;
+  parent_telegram_id?: number;
+  subject?: string;
+  start_at: string;
+  duration_minutes: number;
+  meeting_url?: string;
+  notes?: string;
 }
 
 export const lessonsApi = {
-  list: (filters?: LessonsFilter) => {
-    const params: Record<string, string> = {};
-    if (filters?.date_from) params.date_from = filters.date_from;
-    if (filters?.date_to) params.date_to = filters.date_to;
-    if (filters?.status) params.status = filters.status;
-    if (filters?.student_ids && filters.student_ids.length > 0) {
-      params.student_ids = filters.student_ids.join(',');
+
+  list: (params?: { page?: number; limit?: number; date_from?: string; date_to?: string; status?: string; student_ids?: number[] }) => {
+    const queryParams: any = params ? { ...params } : {};
+    if (params?.student_ids && params.student_ids.length > 0) {
+      queryParams.student_ids = params.student_ids.join(',');
     }
-    return api.get<Lesson[]>('/lessons/', {
-      params: Object.keys(params).length > 0 ? params : undefined,
-    });
+    return api.get<PaginatedResponse<Lesson>>('/lessons/', { params: queryParams });
   },
-  updateStatus: (id: number, status: string) =>
-    api.patch<Lesson>(`/lessons/${id}/status`, { status }),
-  cancel: (id: number) =>
-    api.patch<Lesson>(`/lessons/${id}/status`, { status: 'CANCELLED' }),
-  restore: (id: number) =>
-    api.patch<Lesson>(`/lessons/${id}/status`, { status: 'SCHEDULED' }),
+  
+  create: (data: LessonCreate) => api.post<Lesson>('/lessons/', data),
+  createTrial: (data: TrialLessonCreate) => api.post<Lesson>('/lessons/trial', data),
+  createQuick: (data: any) => api.post<Lesson>('/lessons/quick', data),
+  delete: (id: number) => api.delete(`/lessons/${id}`),
+  
+  cancel: (id: number) => api.patch<Lesson>(`/lessons/${id}/status`, { status: 'CANCELLED' }),
+  restore: (id: number) => api.patch<Lesson>(`/lessons/${id}/status`, { status: 'SCHEDULED' }),
+  
+  payLesson: (lessonId: number, student_ids: number[], amount: number, comment?: string) => 
+    api.post(`/lessons/${lessonId}/pay`, { student_ids, amount, comment }),
+
+  complete: (id: number, data: any) => api.post<Lesson>(`/lessons/${id}/complete`, data),
+  updateStatus: (id: number, status: string) => api.patch<Lesson>(`/lessons/${id}/status`, { status }),
+  updateLessonTime: (lessonId: number, start_at: string, end_at: string) =>
+    api.patch<Lesson>(`/lessons/${lessonId}/time`, { start_at, end_at }),
+
   uploadAttachment: (lessonId: number, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post(`/lessons/${lessonId}/attachments`, formData, {
+    return api.post<HomeworkAttachment>(`/lessons/${lessonId}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
-  deleteAttachment: (attachmentId: number) =>
-    api.delete(`/lessons/attachments/${attachmentId}`),
-  
-  payLesson: (lessonId: number, studentIds: number[], amount: number, comment?: string) =>
-    api.post(`/lessons/${lessonId}/pay`, { 
-      student_ids: studentIds, 
-      amount, 
-      comment 
-    }),
 
-  updateLessonTime: (lessonId: number, start_at: string, end_at: string) =>
-    api.patch<Lesson>(`/lessons/${lessonId}/time`, { start_at, end_at }),
+  deleteAttachment: (attachmentId: number) => api.delete(`/lessons/attachments/${attachmentId}`),
 };

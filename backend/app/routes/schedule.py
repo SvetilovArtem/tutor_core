@@ -3,9 +3,9 @@
 import calendar
 from datetime import date, time as dt_time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
@@ -20,6 +20,7 @@ from app.schemas.schedule import (
     ScheduleRuleUpdate,
     ScheduleRuleResponse,
 )
+from app.schemas.pagination import PaginatedResponse
 from app.services.auth import get_current_tutor
 from app.services.schedule_service import generate_lessons
 from app.services.schedule_validator import check_rule_time_conflict
@@ -30,6 +31,12 @@ router = APIRouter(prefix="/schedule", tags=["schedule"])
 class GenerateRequest(BaseModel):
     date_from: date
     date_to: date
+
+
+# ── МОДЕЛЬ ОТВЕТА С ПАГИНАЦИЕЙ ──────────────────────────────────
+
+class ScheduleRulePaginatedResponse(PaginatedResponse[ScheduleRuleResponse]):
+    pass
 
 
 # ── Schedule Rules ────────────────────────────────────────────────
@@ -49,27 +56,43 @@ async def _sync_rule_students(db: AsyncSession, rule: ScheduleRule, student_ids:
     await db.flush()
 
 
-@router.get("/rules", response_model=list[ScheduleRuleResponse])
+@router.get("/rules", response_model=ScheduleRulePaginatedResponse)
 async def list_rules(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),  # Дефолт 10 для расписания
     student_id: int | None = None,
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
     """Список правил расписания репетитора."""
+    # 1. Запрос для подсчета общего количества
+    count_query = select(func.count(ScheduleRule.id)).where(ScheduleRule.tutor_id == tutor.id)
+    
+    # 2. Основной запрос для получения данных
     query = select(ScheduleRule).where(ScheduleRule.tutor_id == tutor.id)
 
     if student_id is not None:
-        query = query.where(
-            ScheduleRule.id.in_(
-                select(ScheduleRuleStudent.rule_id).where(
-                    ScheduleRuleStudent.student_id == student_id
-                )
-            )
-        )
+        subq = select(ScheduleRuleStudent.rule_id).where(ScheduleRuleStudent.student_id == student_id)
+        count_query = count_query.where(ScheduleRule.id.in_(subq))
+        query = query.where(ScheduleRule.id.in_(subq))
 
-    query = query.order_by(ScheduleRule.weekday, ScheduleRule.start_time)
+    # 3. Считаем общее количество и страницы
+    total = (await db.execute(count_query)).scalar() or 0
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
+
+    # 4. Применяем пагинацию (смещение и лимит)
+    query = query.order_by(ScheduleRule.weekday, ScheduleRule.start_time).offset((page - 1) * limit).limit(limit)
+    
     result = await db.execute(query)
-    return result.scalars().all()
+    items = result.scalars().all()
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages
+    }
 
 
 @router.post("/rules", response_model=ScheduleRuleResponse, status_code=201)

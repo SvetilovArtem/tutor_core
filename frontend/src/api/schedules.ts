@@ -1,6 +1,13 @@
 import api from './client';
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
 
-export interface StudentBrief {
+export interface ScheduleRuleStudent {
   id: number;
   name: string;
 }
@@ -12,15 +19,14 @@ export interface ScheduleRule {
   weekday: number;
   start_time: string;
   duration_minutes: number;
-  is_active: boolean;
   effective_from: string;
   effective_to: string | null;
-  students: StudentBrief[];
+  students: ScheduleRuleStudent[];
 }
 
 export interface ScheduleRuleCreate {
   student_ids: number[];
-  group_name?: string | null;
+  group_name: string | null;
   weekday: number;
   start_time: string;
   duration_minutes: number;
@@ -36,19 +42,42 @@ export interface ScheduleRuleUpdate {
   duration_minutes?: number;
   effective_from?: string;
   effective_to?: string | null;
-  is_active?: boolean;
+}
+
+export interface ScheduleException {
+  id: number;
+  rule_id: number;
+  date: string;
+  type: 'SKIP' | 'ADD';
+  start_time?: string;
+  duration_minutes?: number;
+  comment?: string;
+}
+
+export interface ScheduleExceptionCreate {
+  rule_id: number;
+  date: string;
+  type: 'SKIP' | 'ADD';
+  start_time?: string;
+  duration_minutes?: number;
+  comment?: string;
 }
 
 export const scheduleApi = {
-  listRules: (studentId?: number) => 
-    api.get<ScheduleRule[]>('/schedule/rules', { 
-      params: studentId ? { student_id: studentId } : undefined 
-    }),
-  createRule: (data: ScheduleRuleCreate) => 
-    api.post<ScheduleRule>('/schedule/rules', data),
-  updateRule: (id: number, data: ScheduleRuleUpdate) =>
-    api.patch<ScheduleRule>(`/schedule/rules/${id}`, data),
+ 
+  listRules: (params?: { page?: number; limit?: number; student_id?: number }) => 
+    api.get<PaginatedResponse<ScheduleRule>>('/schedule/rules', { params }),
+
+  createRule: (data: ScheduleRuleCreate) => api.post<ScheduleRule>('/schedule/rules', data),
+  updateRule: (id: number, data: ScheduleRuleUpdate) => api.patch<ScheduleRule>(`/schedule/rules/${id}`, data),
   deleteRule: (id: number) => api.delete(`/schedule/rules/${id}`),
-  generate: (dateFrom: string, dateTo: string) =>
-    api.post('/schedule/generate', { date_from: dateFrom, date_to: dateTo }),
+
+  listExceptions: (rule_id?: number) => 
+    api.get<ScheduleException[]>('/schedule/exceptions', { params: rule_id ? { rule_id } : undefined }),
+    
+  createException: (data: ScheduleExceptionCreate) => api.post<ScheduleException>('/schedule/exceptions', data),
+  deleteException: (id: number) => api.delete(`/schedule/exceptions/${id}`),
+
+  generate: (date_from: string, date_to: string) => 
+    api.post<{ created: number }>('/schedule/generate', { date_from, date_to }),
 };

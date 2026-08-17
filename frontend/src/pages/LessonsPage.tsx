@@ -9,6 +9,7 @@ import HomeworkUploader from '../components/HomeworkUploader';
 import StudentMultiSelect from '../components/StudentMultiSelect';
 import DateRangeField from '../components/DateRangeField';
 import StatusDropdownPortal from '../components/StatusDropdownPortal';
+import Pagination from '../components/Pagination';
 import { lessonsApi, type Lesson } from '../api/lessons';
 import { studentsApi, type Student } from '../api/students';
 import styles from './LessonsPage.module.css';
@@ -20,9 +21,37 @@ const STATUS_OPTIONS = [
   { value: 'CANCELLED', label: 'Отменён' },
 ];
 
+const STORAGE_KEY = 'lessons_pagination_state';
+
 export default function LessonsPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const highlightId = searchParams.get('highlight');
+
+  const getInitialPagination = () => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const page = Number(parsed.page);
+        const limit = Number(parsed.limit);
+        if (page > 0 && limit > 0) return { page, limit };
+      }
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+    
+    const urlPage = Number(searchParams.get('page'));
+    const urlLimit = Number(searchParams.get('limit'));
+    return {
+      page: !isNaN(urlPage) && urlPage > 0 ? urlPage : 1,
+      limit: !isNaN(urlLimit) && urlLimit > 0 ? urlLimit : 15,
+    };
+  };
+
+  const initialPagination = getInitialPagination();
+  const [currentPage, setCurrentPage] = useState(initialPagination.page);
+  const [limit, setLimit] = useState(initialPagination.limit);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [anchorButton, setAnchorButton] = useState<HTMLButtonElement | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -43,13 +72,25 @@ export default function LessonsPage() {
   const [paymentComment, setPaymentComment] = useState('');
   const [processingPayment, setProcessingPayment] = useState(false);
 
+  const syncPagination = (page: number, limitVal: number) => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ page, limit: limitVal }));
+    setSearchParams(prev => {
+      const params = new URLSearchParams(prev);
+      params.set('page', String(page));
+      params.set('limit', String(limitVal));
+      return params;
+    }, { replace: true });
+  };
+
   useEffect(() => {
-    studentsApi.list().then((r) => setStudents(r.data)).catch(() => {});
+    studentsApi.list().then((r) => setStudents(r.data.items)).catch(() => {});
   }, []);
 
   useEffect(() => {
     setLoading(true);
     lessonsApi.list({
+      page: currentPage,
+      limit: limit,
       date_from: filterDateFrom || undefined,
       date_to: filterDateTo || undefined,
       status: filterStatus || undefined,
@@ -57,13 +98,21 @@ export default function LessonsPage() {
     })
       .then((r) => {
         const filtered = showCancelled
-          ? r.data
-          : r.data.filter((l) => l.status !== 'CANCELLED');
+          ? r.data.items
+          : r.data.items.filter((l) => l.status !== 'CANCELLED');
+
+        if (filtered.length === 0 && currentPage > 1) {
+          setCurrentPage(1);
+          syncPagination(1, limit);
+          return;
+        }
+
         setLessons(filtered);
+        setTotalPages(r.data.total_pages);
       })
       .catch(() => toast.error('Ошибка загрузки уроков'))
       .finally(() => setLoading(false));
-  }, [filterDateFrom, filterDateTo, filterStatus, filterStudentIds, showCancelled]);
+  }, [currentPage, limit, filterDateFrom, filterDateTo, filterStatus, filterStudentIds, showCancelled]);
 
   useEffect(() => {
     if (!loading && highlightId && highlightedRef.current) {
@@ -75,9 +124,7 @@ export default function LessonsPage() {
     try {
       await lessonsApi.updateStatus(id, newStatus);
       toast.success('Статус обновлён');
-      setLessons((prev) =>
-        prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l)),
-      );
+      setLessons((prev) => prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l)));
     } catch {
       toast.error('Ошибка обновления статуса');
     } finally {
@@ -91,8 +138,8 @@ export default function LessonsPage() {
       prev.map((l) =>
         l.id === lessonId
           ? { ...l, homework_attachments: [...(l.homework_attachments || []), res.data] }
-          : l,
-      ),
+          : l
+      )
     );
   };
 
@@ -101,14 +148,9 @@ export default function LessonsPage() {
     setLessons((prev) =>
       prev.map((l) =>
         l.id === lessonId
-          ? {
-              ...l,
-              homework_attachments: (l.homework_attachments || []).filter(
-                (a) => a.id !== attachmentId,
-              ),
-            }
-          : l,
-      ),
+          ? { ...l, homework_attachments: (l.homework_attachments || []).filter((a) => a.id !== attachmentId) }
+          : l
+      )
     );
   };
 
@@ -127,7 +169,17 @@ export default function LessonsPage() {
     try {
       await lessonsApi.restore(id);
       toast.success('Урок восстановлен');
-      setLessons((prev) => prev.filter((l) => l.id !== id));
+      const res = await lessonsApi.list({
+        page: currentPage,
+        limit: limit,
+        date_from: filterDateFrom || undefined,
+        date_to: filterDateTo || undefined,
+        status: filterStatus || undefined,
+        student_ids: filterStudentIds.length ? filterStudentIds : undefined,
+      });
+      const filtered = showCancelled ? res.data.items : res.data.items.filter((l) => l.status !== 'CANCELLED');
+      setLessons(filtered);
+      setTotalPages(res.data.total_pages);
     } catch {
       toast.error('Ошибка восстановления');
     }
@@ -135,18 +187,14 @@ export default function LessonsPage() {
 
   const openPaymentModal = (lesson: Lesson) => {
     setPaymentLesson(lesson);
-    setPaymentStudentIds(
-      lesson.students.filter((s) => !s.is_paid).map((s) => s.student_id)
-    );
+    setPaymentStudentIds(lesson.students.filter((s) => !s.is_paid).map((s) => s.student_id));
     setPaymentAmount('');
     setPaymentComment(`Оплата за урок ${format(new Date(lesson.start_at), 'dd.MM.yyyy')}`);
   };
 
   const togglePaymentStudent = (studentId: number) => {
     setPaymentStudentIds((prev) =>
-      prev.includes(studentId)
-        ? prev.filter((id) => id !== studentId)
-        : [...prev, studentId],
+      prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]
     );
   };
 
@@ -157,14 +205,7 @@ export default function LessonsPage() {
     try {
       const amount = Number(paymentAmount);
       const comment = paymentComment || 'Оплата за урок';
-
-      await lessonsApi.payLesson(
-        paymentLesson.id,
-        paymentStudentIds,
-        amount,
-        comment,
-      );
-
+      await lessonsApi.payLesson(paymentLesson.id, paymentStudentIds, amount, comment);
       toast.success(`Оплата зафиксирована для ${paymentStudentIds.length} учеников`);
       
       setLessons((prev) =>
@@ -177,7 +218,7 @@ export default function LessonsPage() {
               is_paid: paymentStudentIds.includes(s.student_id) ? true : s.is_paid,
             })),
           };
-        }),
+        })
       );
       
       setPaymentLesson(null);
@@ -185,20 +226,25 @@ export default function LessonsPage() {
       setPaymentAmount('');
       setPaymentComment('');
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Ошибка оплаты');
+      const errorDetail = err.response?.data?.detail;
+      let errorMessage = 'Ошибка оплаты';
+      if (typeof errorDetail === 'string') errorMessage = errorDetail;
+      else if (Array.isArray(errorDetail) && errorDetail.length > 0) errorMessage = errorDetail[0].msg;
+      toast.error(errorMessage);
     } finally {
       setProcessingPayment(false);
     }
   };
 
-  const hasActiveFilters =
-    filterDateFrom || filterDateTo || filterStatus || filterStudentIds.length > 0;
+  const hasActiveFilters = filterDateFrom || filterDateTo || filterStatus || filterStudentIds.length > 0;
 
   const resetFilters = () => {
     setFilterDateFrom('');
     setFilterDateTo('');
     setFilterStatus('');
     setFilterStudentIds([]);
+    setCurrentPage(1);
+    syncPagination(1, limit);
   };
 
   if (loading) return <div className={styles.empty}>Загрузка...</div>;
@@ -211,7 +257,11 @@ export default function LessonsPage() {
           <input
             type="checkbox"
             checked={showCancelled}
-            onChange={(e) => setShowCancelled(e.target.checked)}
+            onChange={(e) => {
+              setShowCancelled(e.target.checked);
+              setCurrentPage(1);
+              syncPagination(1, limit);
+            }}
           />
           Показать отменённые
         </label>
@@ -226,6 +276,8 @@ export default function LessonsPage() {
             onChange={(start, end) => {
               setFilterDateFrom(start);
               setFilterDateTo(end || '');
+              setCurrentPage(1);
+              syncPagination(1, limit);
             }}
             compact
           />
@@ -236,12 +288,14 @@ export default function LessonsPage() {
           <select
             className={styles.statusSelect}
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setCurrentPage(1);
+              syncPagination(1, limit);
+            }}
           >
             {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
         </div>
@@ -251,20 +305,18 @@ export default function LessonsPage() {
           <StudentMultiSelect
             students={students}
             selectedIds={filterStudentIds}
-            onChange={setFilterStudentIds}
+            onChange={(ids) => {
+              setFilterStudentIds(ids);
+              setCurrentPage(1);
+              syncPagination(1, limit);
+            }}
             placeholder="Все ученики"
           />
         </div>
 
         {hasActiveFilters && (
-          <button
-            type="button"
-            className={styles.resetBtn}
-            onClick={resetFilters}
-            title="Сбросить все фильтры"
-          >
-            <Icon name="close" size={14} />
-            Сбросить
+          <button type="button" className={styles.resetBtn} onClick={resetFilters} title="Сбросить все фильтры">
+            <Icon name="close" size={14} /> Сбросить
           </button>
         )}
 
@@ -276,11 +328,7 @@ export default function LessonsPage() {
       <div className={styles.tableWrapper}>
         {lessons.length === 0 ? (
           <div className={styles.empty}>
-            {hasActiveFilters
-              ? 'По выбранным фильтрам уроков не найдено'
-              : showCancelled
-                ? 'Нет уроков.'
-                : 'Нет активных уроков. Создайте через расписание или вручную.'}
+            {hasActiveFilters ? 'По выбранным фильтрам уроков не найдено' : showCancelled ? 'Нет уроков.' : 'Нет активных уроков. Создайте через расписание или вручную.'}
           </div>
         ) : (
           <table className={styles.table}>
@@ -304,9 +352,7 @@ export default function LessonsPage() {
                   <tr
                     key={l.id}
                     ref={isHighlighted ? highlightedRef : undefined}
-                    className={`${isHighlighted ? styles.highlightedRow : ''} ${
-                      isCancelled ? styles.cancelledRow : ''
-                    }`}
+                    className={`${isHighlighted ? styles.highlightedRow : ''} ${isCancelled ? styles.cancelledRow : ''}`}
                   >
                     <td className={styles.dateCell}>
                       {format(new Date(l.start_at), 'dd MMM yyyy, HH:mm', { locale: ru })}
@@ -314,36 +360,24 @@ export default function LessonsPage() {
                     <td>
                       <div className={styles.studentsList}>
                         {l.students.map((s) => (
-                          <span 
-                            key={s.student_id} 
-                            className={`${styles.studentChip} ${s.is_paid ? styles.studentPaid : ''}`}
-                          >
+                          <span key={s.student_id} className={`${styles.studentChip} ${s.is_paid ? styles.studentPaid : ''}`}>
                             {s.student_name}
                           </span>
                         ))}
                       </div>
                     </td>
-                    
-                    {/* ИСПРАВЛЕННАЯ ЯЧЕЙКА СТАТУСА: только кнопка с ref, без встроенного дропдауна */}
                     <td>
                       <button
-                        ref={(el) => {
-                          if (openStatusId === l.id) {
-                            setAnchorButton(el);
-                          }
-                        }}
+                        ref={(el) => { if (openStatusId === l.id) setAnchorButton(el); }}
                         className={styles.statusBtn}
                         onClick={() => setOpenStatusId(openStatusId === l.id ? null : l.id)}
                       >
                         <StatusBadge status={l.status} type="lesson" />
                       </button>
                     </td>
-
                     <td>
                       <div className={styles.homeworkContent}>
-                        {l.homework_text && (
-                          <p className={styles.homeworkText}>{l.homework_text}</p>
-                        )}
+                        {l.homework_text && <p className={styles.homeworkText}>{l.homework_text}</p>}
                         <HomeworkUploader
                           lessonId={l.id}
                           attachments={l.homework_attachments || []}
@@ -355,37 +389,21 @@ export default function LessonsPage() {
                     </td>
                     <td className={styles.actionsCell}>
                       {isCancelled ? (
-                        <button
-                          className={styles.restoreBtn}
-                          onClick={() => handleRestore(l.id)}
-                          title="Восстановить урок"
-                        >
+                        <button className={styles.restoreBtn} onClick={() => handleRestore(l.id)} title="Восстановить урок">
                           <Icon name="refresh" size={14} />
                         </button>
                       ) : isCompleted ? (
                         hasUnpaid ? (
-                          <button
-                            className={styles.payBtn}
-                            onClick={() => openPaymentModal(l)}
-                            title="Есть неоплаченные ученики"
-                          >
+                          <button className={styles.payBtn} onClick={() => openPaymentModal(l)} title="Есть неоплаченные ученики">
                             <Icon name="wallet" size={14} />
                           </button>
                         ) : (
-                          <button
-                            className={styles.paidBtn}
-                            title="Все ученики оплатили"
-                            disabled
-                          >
+                          <button className={styles.paidBtn} title="Все ученики оплатили" disabled>
                             <Icon name="check" size={14} />
                           </button>
                         )
                       ) : (
-                        <button
-                          className={styles.deleteBtn}
-                          onClick={() => handleCancel(l.id)}
-                          title="Отменить урок"
-                        >
+                        <button className={styles.deleteBtn} onClick={() => handleCancel(l.id)} title="Отменить урок">
                           <Icon name="trash" size={14} />
                         </button>
                       )}
@@ -398,32 +416,54 @@ export default function LessonsPage() {
         )}
       </div>
 
-      {/* ПОРТАЛ ДЛЯ ДРОПДАУНА (рендерится вне таблицы, в корне DOM) */}
+      {!loading && totalPages > 1 && (
+        <div className={styles.paginationWrapper}>
+          <div className={styles.limitSelector}>
+            <label>Показывать по:</label>
+            <select 
+              className={styles.limitSelect}
+              value={limit} 
+              onChange={(e) => {
+                const newLimit = Number(e.target.value);
+                setLimit(newLimit);
+                setCurrentPage(1);
+                syncPagination(1, newLimit);
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={15}>15</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+          
+          <Pagination 
+            currentPage={currentPage} 
+            totalPages={totalPages} 
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              syncPagination(page, limit);
+            }} 
+          />
+        </div>
+      )}
+
       {openStatusId !== null && (
         <StatusDropdownPortal
           anchorRef={anchorButton}
           currentStatus={lessons.find((l) => l.id === openStatusId)?.status || ''}
           onSelect={(newStatus) => {
-            if (openStatusId !== null) {
-              handleStatusChange(openStatusId, newStatus);
-            }
+            if (openStatusId !== null) handleStatusChange(openStatusId, newStatus);
           }}
           onClose={() => setOpenStatusId(null)}
         />
       )}
 
-      {/* МОДАЛКА ОПЛАТЫ */}
       {paymentLesson && (
         <div className={styles.modalOverlay} onClick={() => setPaymentLesson(null)}>
-          <form
-            className={styles.modal}
-            onSubmit={handleLessonPayment}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <form className={styles.modal} onSubmit={handleLessonPayment} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.modalTitle}>Ученик оплатил урок</h2>
-            <p className={styles.modalHint}>
-              {format(new Date(paymentLesson.start_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
-            </p>
+            <p className={styles.modalHint}>{format(new Date(paymentLesson.start_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}</p>
 
             <div className={styles.formGroup}>
               <label className={styles.label}>Ученики, которые оплатили</label>
@@ -444,50 +484,24 @@ export default function LessonsPage() {
 
             <div className={styles.formGroup}>
               <label className={styles.label}>Сумма за каждого (BYN) *</label>
-              <input
-                className={styles.input}
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                required
-                autoFocus
-              />
+              <input className={styles.input} type="number" min="0.01" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} required autoFocus />
             </div>
 
             <div className={styles.formGroup}>
               <label className={styles.label}>Комментарий</label>
-              <input
-                className={styles.input}
-                value={paymentComment}
-                onChange={(e) => setPaymentComment(e.target.value)}
-                placeholder="Наличные, перевод и т.д."
-              />
+              <input className={styles.input} value={paymentComment} onChange={(e) => setPaymentComment(e.target.value)} placeholder="Наличные, перевод и т.д." />
             </div>
 
             {paymentStudentIds.length > 0 && paymentAmount && (
               <div className={styles.paymentSummary}>
                 Итого: <strong>{(Number(paymentAmount) * paymentStudentIds.length).toFixed(2)} BYN</strong>
-                <span className={styles.paymentSummaryHint}>
-                  ({paymentStudentIds.length} × {Number(paymentAmount).toFixed(2)} BYN)
-                </span>
+                <span className={styles.paymentSummaryHint}>({paymentStudentIds.length} × {Number(paymentAmount).toFixed(2)} BYN)</span>
               </div>
             )}
 
             <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelBtn}
-                onClick={() => setPaymentLesson(null)}
-              >
-                Отмена
-              </button>
-              <button
-                type="submit"
-                className={styles.submitBtn}
-                disabled={processingPayment || paymentStudentIds.length === 0}
-              >
+              <button type="button" className={styles.cancelBtn} onClick={() => setPaymentLesson(null)}>Отмена</button>
+              <button type="submit" className={styles.submitBtn} disabled={processingPayment || paymentStudentIds.length === 0}>
                 {processingPayment ? 'Обработка...' : 'Зафиксировать оплату'}
               </button>
             </div>

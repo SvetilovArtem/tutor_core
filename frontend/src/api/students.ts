@@ -1,8 +1,15 @@
 import api from './client';
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
 
 export interface StudentSubject {
   subject: string;
-  price_per_lesson: number | string;
+  price_per_lesson: number;
 }
 
 export interface Student {
@@ -13,19 +20,21 @@ export interface Student {
   email: string | null;
   telegram_id: number | null;
   birth_date: string | null;
-  base_price: number | string;
+  base_price: number;
   notes: string | null;
   is_active: boolean;
-  subjects: StudentSubject[]; 
-  balance: number | string;
+  subjects: StudentSubject[];
+  balance: number;
 }
 
 export interface StudentsListParams {
+  page?: number;
+  limit?: number;
   search?: string;
   subject?: string;
   is_active?: boolean;
-  sort_by?: string;
-  sort_order?: string;
+  sort_by?: 'name' | 'created_at';
+  sort_order?: 'asc' | 'desc';
 }
 
 export interface StudentCreate {
@@ -34,23 +43,41 @@ export interface StudentCreate {
   email?: string;
   telegram_id?: number;
   birth_date?: string;
+  base_price: number;
+  notes?: string;
+  subjects: { subject: string; price_per_lesson: number }[];
+}
+
+export interface StudentUpdate {
+  name?: string;
+  phone?: string;
+  email?: string;
+  telegram_id?: number;
+  birth_date?: string;
   base_price?: number;
   notes?: string;
-  subjects: StudentSubject[]; 
+  subjects?: { subject: string; price_per_lesson: number }[];
 }
 
 export const studentsApi = {
-  list: (params?: StudentsListParams) => api.get<Student[]>('/students/', { params }),
+
+  list: (params?: StudentsListParams) => 
+    api.get<PaginatedResponse<Student>>('/students/', { params }),
+
   create: (data: StudentCreate) => api.post<Student>('/students/', data),
-  update: (id: number, data: Partial<StudentCreate>) => api.patch<Student>(`/students/${id}`, data),
+  
+  get: (id: number) => api.get<Student>(`/students/${id}`),
+  
+  update: (id: number, data: StudentUpdate) => api.patch<Student>(`/students/${id}`, data),
+  
+  toggleActive: (id: number) => api.patch<Student>(`/students/${id}/toggle-active`, {}),
+  
   delete: (id: number) => api.delete(`/students/${id}`),
-  toggleActive: (id: number) => api.patch<Student>(`/students/${id}/toggle-active`),
+  
   remindPayment: (id: number) => api.post(`/students/${id}/remind-payment`),
-  getBalance: (id: number) => api.get<{ student_id: number; balance: number }>(`/students/${id}/balance`),
-  acceptPayment: (id: number, amount: number, comment?: string) => api.post(`/students/${id}/payment`, { amount, comment }),
-  adjustBalance: (id: number, amount: number, comment?: string) => api.post(`/students/${id}/adjust`, { amount, comment }),
-  generateInviteCode: (studentId: number) => 
-    api.post<{ code: string; expires_at: string; student_name: string }>(`/api/bot/invite/${studentId}`, {}, {
-      headers: { 'X-Bot-Token': import.meta.env.VITE_BOT_TOKEN || 'your-bot-token-here' }
-    }),
+  
+  adjustBalance: (id: number, amount: number, comment?: string) => 
+    api.post(`/students/${id}/adjust`, { amount, comment }),
+    
+  generateInviteCode: (id: number) => api.post<{ code: string }>(`/students/${id}/invite-code`),
 };

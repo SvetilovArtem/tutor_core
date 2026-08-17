@@ -13,15 +13,17 @@ from app.models.tutor import Tutor
 from app.models.student import Student
 from app.models.student_subject import StudentSubject
 from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse
+from app.schemas.pagination import PaginatedResponse
 from app.services.auth import get_current_tutor
 from app.services.balance_service import get_student_balance, record_student_payment, adjust_student_balance
 
 router = APIRouter(prefix="/students", tags=["students"])
 
+class StudentPaginatedResponse(PaginatedResponse[StudentResponse]):
+    pass
 
 def _student_belongs_to_tutor_query(tutor_id: int):
     return Student.id.isnot(None)
-
 
 async def _to_response(db: AsyncSession, student: Student) -> StudentResponse:
     balance = await get_student_balance(db, student.id)
@@ -41,9 +43,10 @@ async def _to_response(db: AsyncSession, student: Student) -> StudentResponse:
         balance=balance,
     )
 
-
-@router.get("/", response_model=list[StudentResponse])
+@router.get("/", response_model=StudentPaginatedResponse)
 async def list_students(
+    page: int = Query(1, ge=1),
+    limit: int = Query(25, ge=1, le=100), # Дефолт 25 для учеников
     search: str | None = Query(None, description="Поиск по имени/телефону"),
     subject: str | None = Query(None, description="Фильтр по предмету"),
     is_active: bool | None = Query(None, description="Фильтр по активности"),
@@ -52,6 +55,7 @@ async def list_students(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
+    count_query = select(func.count(Student.id)).where(_student_belongs_to_tutor_query(tutor.id))
     query = (
         select(Student)
         .where(_student_belongs_to_tutor_query(tutor.id))
@@ -60,6 +64,12 @@ async def list_students(
 
     if search:
         pattern = f"%{search.strip().lower()}%"
+        count_query = count_query.where(
+            or_(
+                func.lower(Student.name).like(pattern),
+                func.lower(func.coalesce(Student.phone, "")).like(pattern),
+            )
+        )
         query = query.where(
             or_(
                 func.lower(Student.name).like(pattern),
@@ -68,14 +78,16 @@ async def list_students(
         )
 
     if is_active is not None:
+        count_query = count_query.where(Student.is_active == is_active)
         query = query.where(Student.is_active == is_active)
 
     if subject:
-        query = query.where(
-            Student.id.in_(
-                select(StudentSubject.student_id).where(StudentSubject.subject == subject)
-            )
-        )
+        subq = select(StudentSubject.student_id).where(StudentSubject.subject == subject)
+        count_query = count_query.where(Student.id.in_(subq))
+        query = query.where(Student.id.in_(subq))
+
+    total = (await db.execute(count_query)).scalar() or 0
+    total_pages = (total + limit - 1) // limit if total > 0 else 1
 
     sort_column = getattr(Student, sort_by, Student.name)
     if sort_order == "desc":
@@ -83,11 +95,19 @@ async def list_students(
     else:
         query = query.order_by(sort_column.asc())
 
+    query = query.offset((page - 1) * limit).limit(limit)
     result = await db.execute(query)
     students = result.scalars().all()
 
-    return [await _to_response(db, s) for s in students]
-
+    items = [await _to_response(db, s) for s in students]
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages
+    }
 
 @router.post("/", response_model=StudentResponse, status_code=201)
 async def create_student(
@@ -142,7 +162,6 @@ async def create_student(
 
     return await _to_response(db, student)
 
-
 @router.get("/{student_id}", response_model=StudentResponse)
 async def get_student(
     student_id: int,
@@ -162,7 +181,6 @@ async def get_student(
         raise HTTPException(status_code=404, detail="Ученик не найден")
 
     return await _to_response(db, student)
-
 
 @router.patch("/{student_id}", response_model=StudentResponse)
 async def update_student(
@@ -217,7 +235,6 @@ async def update_student(
 
     return await _to_response(db, student)
 
-
 @router.patch("/{student_id}/toggle-active", response_model=StudentResponse)
 async def toggle_student_active(
     student_id: int,
@@ -248,7 +265,6 @@ async def toggle_student_active(
 
     return await _to_response(db, student)
 
-
 @router.post("/{student_id}/remind-payment", status_code=200)
 async def remind_payment(
     student_id: int,
@@ -270,7 +286,6 @@ async def remind_payment(
         "student_id": student.id,
     }
 
-
 @router.delete("/{student_id}", status_code=204)
 async def delete_student(
     student_id: int,
@@ -290,11 +305,9 @@ async def delete_student(
     await db.delete(student)
     await db.commit()
 
-
 class StudentPaymentRequest(BaseModel):
     amount: Decimal = Field(..., gt=0, description="Сумма оплаты (положительная)")
     comment: str | None = Field(None, max_length=200)
-
 
 @router.post("/{student_id}/payment", status_code=200)
 async def accept_student_payment(
@@ -320,7 +333,6 @@ async def accept_student_payment(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
 @router.get("/{student_id}/balance")
 async def get_student_balance_endpoint(
     student_id: int,
@@ -340,11 +352,9 @@ async def get_student_balance_endpoint(
     balance = await get_student_balance(db, student_id)
     return {"student_id": student_id, "balance": float(balance)}
 
-
 class BalanceAdjustmentRequest(BaseModel):
     amount: Decimal = Field(..., description="Сумма корректировки (может быть отрицательной)")
     comment: str | None = Field(None, max_length=200)
-
 
 @router.post("/{student_id}/adjust", status_code=200)
 async def adjust_balance_endpoint(
@@ -353,7 +363,6 @@ async def adjust_balance_endpoint(
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
 ):
-    """Корректировка баланса ученика (пополнение или списание)."""
     result = await db.execute(
         select(Student).where(
             Student.id == student_id,

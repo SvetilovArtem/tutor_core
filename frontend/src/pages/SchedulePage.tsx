@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import Icon from '../components/Icon';
 import { scheduleApi, type ScheduleRule, type ScheduleRuleUpdate } from '../api/schedules';
 import { studentsApi, type Student } from '../api/students';
+import { tutorsApi, type Tutor } from '../api/tutors';
 import { lessonsApi, type Lesson } from '../api/lessons';
 import DateRangeField from '../components/DateRangeField';
 import ScheduleCalendar from '../components/ScheduleCalendar';
@@ -29,11 +31,11 @@ const createEmptyBlock = (): DayBlock => ({
 export default function SchedulePage() {
   const [rules, setRules] = useState<ScheduleRule[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [tutor, setTutor] = useState<Tutor | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
-  // Создание
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formStudentIds, setFormStudentIds] = useState<number[]>([]);
@@ -42,7 +44,6 @@ export default function SchedulePage() {
   const [formTo, setFormTo] = useState<string | null>(null);
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([createEmptyBlock()]);
 
-  // Редактирование
   const [editingRule, setEditingRule] = useState<ScheduleRule | null>(null);
   const [editForm, setEditForm] = useState<{
     weekday: number;
@@ -59,44 +60,63 @@ export default function SchedulePage() {
   });
   const [saving, setSaving] = useState(false);
 
-  // Календарь
   const [selectedDay, setSelectedDay] = useState<{ date: Date; lessons: Lesson[] } | null>(null);
 
-  // Генерация уроков
   const [showGenModal, setShowGenModal] = useState(false);
   const [genFrom, setGenFrom] = useState(new Date().toISOString().split('T')[0]);
   const [genTo, setGenTo] = useState<string | null>(null);
 
+  const [showCreateLesson, setShowCreateLesson] = useState(false);
+  const [lessonStudentIds, setLessonStudentIds] = useState<number[]>([]);
+  const [lessonSubject, setLessonSubject] = useState('');
+  const [lessonDate, setLessonDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [lessonTime, setLessonTime] = useState('10:00');
+  const [lessonDuration, setLessonDuration] = useState(60);
+  const [lessonMeetingUrl, setLessonMeetingUrl] = useState('');
+  const [lessonHomework, setLessonHomework] = useState('');
+  const [savingLesson, setSavingLesson] = useState(false);
+
   const loadData = () => {
+    const now = new Date();
+    const date_from = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+    const date_to = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split('T')[0];
+
     Promise.all([
       scheduleApi.listRules(),
       studentsApi.list(),
-      lessonsApi.list(),
+      lessonsApi.list({
+        date_from,
+        date_to,
+        limit: 1000, 
+      }),
+      tutorsApi.getMe(),
     ])
-      .then(([r, s, l]) => {
-        setRules(r.data);
-        setStudents(s.data);
-        setLessons(l.data);
+      .then(([r, s, l, t]) => {
+        setRules(r.data.items);       
+        setStudents(s.data.items);     
+        setLessons(l.data.items);      
+        setTutor(t.data);
       })
-      .catch(() => toast.error('Ошибка загрузки'))
+      .catch((err) => {
+        console.error('Ошибка загрузки данных:', err);
+        toast.error('Ошибка загрузки расписания');
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, []);
 
-  // ── Создание ────────────────────────────────────────────────
-
   const addBlock = () => setDayBlocks((prev) => [...prev, createEmptyBlock()]);
-
+  
   const removeBlock = (id: string) => {
     if (dayBlocks.length === 1) return;
     setDayBlocks((prev) => prev.filter((b) => b.id !== id));
   };
-
+  
   const updateBlock = (id: string, field: keyof DayBlock, value: string | number) => {
     setDayBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, [field]: value } : b)));
   };
-
+  
   const resetCreateForm = () => {
     setFormStudentIds([]);
     setFormGroupName('');
@@ -104,13 +124,11 @@ export default function SchedulePage() {
     setFormTo(null);
     setDayBlocks([createEmptyBlock()]);
   };
-
+  
   const toggleStudent = (id: number) => {
-    setFormStudentIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setFormStudentIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
-
+  
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
@@ -138,8 +156,6 @@ export default function SchedulePage() {
     }
   };
 
-  // ── Редактирование ──────────────────────────────────────────
-
   const openEdit = (rule: ScheduleRule) => {
     setEditingRule(rule);
     setEditForm({
@@ -152,16 +168,14 @@ export default function SchedulePage() {
       effective_to: rule.effective_to,
     });
   };
-
+  
   const toggleEditStudent = (id: number) => {
     setEditForm((f) => ({
       ...f,
-      student_ids: f.student_ids.includes(id)
-        ? f.student_ids.filter((x) => x !== id)
-        : [...f.student_ids, id],
+      student_ids: f.student_ids.includes(id) ? f.student_ids.filter((x) => x !== id) : [...f.student_ids, id],
     }));
   };
-
+  
   const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRule) return;
@@ -187,16 +201,12 @@ export default function SchedulePage() {
     }
   };
 
-  // ── Клик по уроку в календаре ───────────────────────────────
-
   const navigate = useNavigate();
   
   const handleLessonClick = (lessonId: number) => {
     setSelectedDay(null);
     navigate(`/lessons?highlight=${lessonId}`);
   };
-
-  // ── Удаление и генерация ───────────────────────────────────
 
   const handleDelete = async (id: number) => {
     if (!confirm('Удалить правило расписания?')) return;
@@ -215,7 +225,6 @@ export default function SchedulePage() {
       toast.error('Укажите дату начала');
       return;
     }
-    
     const finalGenTo = genTo || (() => {
       const d = new Date(genFrom);
       const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
@@ -235,7 +244,47 @@ export default function SchedulePage() {
     }
   };
 
-  // ── Хелперы отображения ─────────────────────────────────────
+  const handleCreateLesson = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (lessonStudentIds.length === 0) {
+      toast.error('Выберите хотя бы одного ученика');
+      return;
+    }
+    setSavingLesson(true);
+    try {
+      const startAt = format(new Date(`${lessonDate}T${lessonTime}:00`), "yyyy-MM-dd'T'HH:mm:ssXXX");
+      await lessonsApi.create({
+        start_at: startAt,
+        duration_minutes: lessonDuration,
+        subject: lessonSubject || undefined,
+        students: lessonStudentIds.map(id => ({ student_id: id })),
+        meeting_url: lessonMeetingUrl || undefined,
+        homework_text: lessonHomework || undefined,
+      });
+      toast.success('Урок создан!');
+      setShowCreateLesson(false);
+      setLessonStudentIds([]);
+      setLessonSubject('');
+      setLessonDate(format(new Date(), 'yyyy-MM-dd'));
+      setLessonTime('10:00');
+      setLessonDuration(60);
+      setLessonMeetingUrl('');
+      setLessonHomework('');
+      loadData();
+    } catch (err: any) {
+      const errorDetail = err.response?.data?.detail;
+      let errorMessage = 'Ошибка создания урока';
+      if (typeof errorDetail === 'string') errorMessage = errorDetail;
+      else if (Array.isArray(errorDetail) && errorDetail.length > 0) errorMessage = errorDetail[0].msg;
+      toast.error(errorMessage);
+    } finally {
+      setSavingLesson(false);
+    }
+  };
+
+  const toggleLessonStudent = (id: number) => {
+    setLessonStudentIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
 
   const formatStudents = (rule: ScheduleRule) => {
     if (rule.students.length === 0) return rule.group_name || 'Групповое';
@@ -243,27 +292,25 @@ export default function SchedulePage() {
     return rule.group_name || `${rule.students.length} учеников`;
   };
 
-  // ── Render ─────────────────────────────────────────────────
-
   if (loading) return <div className={styles.empty}>Загрузка...</div>;
 
   return (
     <div className={styles.page}>
-      {/* Header */}
       <div className={styles.header}>
         <h1 className={styles.title}>Расписание</h1>
         <div className={styles.headerActions}>
+          <button className={styles.addBtn} onClick={() => setShowCreateLesson(true)}>
+            <Icon name="plus" size={18} /> Создать урок
+          </button>
           <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}>
-            <Icon name="plus" size={18} /> Новое правило
+            <Icon name="calendar" size={18} /> Новое правило
           </button>
           <button className={styles.generateBtn} onClick={() => setShowGenModal(true)}>
-            <Icon name="calendar" size={18} />
-            Сгенерировать уроки
+            <Icon name="refresh" size={18} /> Сгенерировать уроки
           </button>
         </div>
       </div>
 
-      {/* Rules Table */}
       <div className={styles.tableWrapper}>
         {rules.length === 0 ? (
           <div className={styles.empty}>Нет правил расписания. Создайте первое!</div>
@@ -314,17 +361,86 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* Calendar */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Календарь занятий</h2>
-      <ScheduleCalendar
-        lessons={lessons}
-        onDayClick={(date, dayLessons) => setSelectedDay({ date, lessons: dayLessons })}
-        onLessonsChange={loadData}
-      />
+        <ScheduleCalendar
+          lessons={lessons}
+          onDayClick={(date, dayLessons) => setSelectedDay({ date, lessons: dayLessons })}
+          onLessonsChange={loadData}
+        />
       </div>
 
-      {/* ── Modal: Create ──────────────────────────────────── */}
+      {showCreateLesson && (
+        <div className={styles.modalOverlay} onClick={() => setShowCreateLesson(false)}>
+          <form className={styles.modal} onSubmit={handleCreateLesson} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.modalTitle}>+ Создать урок</h2>
+            <p className={styles.modalHint}>Одиночный урок вне правил расписания</p>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Ученики *</label>
+              <div className={styles.studentPicker}>
+                {students.filter((s) => s.is_active).length === 0 ? (
+                  <div className={styles.emptyHint}>Нет активных учеников</div>
+                ) : (
+                  students.filter((s) => s.is_active).map((student) => (
+                    <label key={student.id} className={`${styles.studentChipPicker} ${lessonStudentIds.includes(student.id) ? styles.studentChipActive : ''}`}>
+                      <input type="checkbox" className={styles.hiddenCheckbox} checked={lessonStudentIds.includes(student.id)} onChange={() => toggleLessonStudent(student.id)} />
+                      {student.name}
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Предмет</label>
+              <select className={styles.input} value={lessonSubject} onChange={(e) => setLessonSubject(e.target.value)}>
+                <option value="">Не указан</option>
+                {tutor?.subjects.map((s) => (<option key={s} value={s}>{s}</option>))}
+              </select>
+              <p className={styles.hint}>Если указан, цена возьмётся из карточки ученика для этого предмета</p>
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Дата *</label>
+                <input className={styles.input} type="date" value={lessonDate} onChange={(e) => setLessonDate(e.target.value)} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Время *</label>
+                <input className={styles.input} type="time" value={lessonTime} onChange={(e) => setLessonTime(e.target.value)} required />
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Длительность</label>
+              <select className={styles.input} value={lessonDuration} onChange={(e) => setLessonDuration(Number(e.target.value))}>
+                <option value={30}>30 минут</option>
+                <option value={45}>45 минут</option>
+                <option value={60}>1 час</option>
+                <option value={90}>1.5 часа</option>
+                <option value={120}>2 часа</option>
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Ссылка на встречу</label>
+              <input className={styles.input} type="url" value={lessonMeetingUrl} onChange={(e) => setLessonMeetingUrl(e.target.value)} placeholder="https://zoom.us/..." />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Домашнее задание</label>
+              <textarea className={styles.textarea} value={lessonHomework} onChange={(e) => setLessonHomework(e.target.value)} placeholder="Задание на урок..." rows={2} />
+            </div>
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.cancelBtn} onClick={() => setShowCreateLesson(false)}>Отмена</button>
+              <button type="submit" className={styles.submitBtn} disabled={savingLesson}>{savingLesson ? 'Создание...' : 'Создать урок'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {showCreateModal && (
         <div className={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
           <form className={styles.modal} onSubmit={handleCreate} onClick={(e) => e.stopPropagation()}>
@@ -422,7 +538,6 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* ── Modal: Edit ────────────────────────────────────── */}
       {editingRule && (
         <div className={styles.modalOverlay} onClick={() => setEditingRule(null)}>
           <form className={styles.modal} onSubmit={handleEditSave} onClick={(e) => e.stopPropagation()}>
@@ -499,7 +614,6 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* ── Modal: Generate Lessons ────────────────────────── */}
       {showGenModal && (
         <div className={styles.modalOverlay} onClick={() => setShowGenModal(false)}>
           <form className={styles.modal} onSubmit={handleGenerate} onClick={(e) => e.stopPropagation()}>
@@ -541,7 +655,6 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* ── Day Detail Modal ───────────────────────────────── */}
       {selectedDay && (
         <DayDetailModal
           date={selectedDay.date}

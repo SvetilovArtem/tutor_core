@@ -1,94 +1,166 @@
-import { useState, useMemo } from 'react';
-import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, format, isSameMonth, isToday,
-  addMonths, subMonths, isSameDay,
-} from 'date-fns';
+import { useState, useEffect } from 'react';
+import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
+import * as dragAndDropModule from 'react-big-calendar/lib/addons/dragAndDrop';
+import { format, parse, startOfWeek, getDay } from 'date-fns'; // format уже есть
 import { ru } from 'date-fns/locale';
-import Icon from './Icon';
-import type { Lesson } from '../api/lessons';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import styles from './ScheduleCalendar.module.css';
+import toast from 'react-hot-toast';
+import { lessonsApi, type Lesson } from '../api/lessons';
+
+const withDragAndDrop = (dragAndDropModule as any).default || (dragAndDropModule as any).withDragAndDrop;
+const DnDCalendar = withDragAndDrop(Calendar);
+
+const locales = {
+  'ru': ru,
+};
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
+
+// НОВОЕ: Функция для корректного форматирования даты с часовым поясом
+const toIsoWithTimezone = (date: Date) => format(date, "yyyy-MM-dd'T'HH:mm:ssXXX");
+
+interface CalendarEvent {
+  id: number;
+  title: string;
+  start: Date;
+  end: Date;
+  status: string;
+  lesson: Lesson;
+}
 
 interface Props {
   lessons: Lesson[];
-  onDayClick: (date: Date, dayLessons: Lesson[]) => void;
+  onDayClick?: (date: Date, dayLessons: Lesson[]) => void;
+  onLessonsChange?: () => void;
 }
 
-const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+export default function ScheduleCalendar({ lessons, onDayClick, onLessonsChange }: Props) {
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
 
-export default function ScheduleCalendar({ lessons, onDayClick }: Props) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  useEffect(() => {
+    const mapped = lessons.map((lesson) => {
+      const studentNames = lesson.students.map((s) => s.student_name).join(', ');
+      return {
+        id: lesson.id,
+        title: studentNames || 'Урок',
+        start: new Date(lesson.start_at),
+        end: new Date(lesson.end_at),
+        status: lesson.status,
+        lesson,
+      };
+    });
+    setEvents(mapped);
+  }, [lessons]);
 
-  const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-    return eachDayOfInterval({ start: calStart, end: calEnd });
-  }, [currentMonth]);
+  const handleEventDrop = async ({ event, start, end }: any) => {
+    // 1. Мгновенно обновляем локально
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === event.id ? { ...e, start, end } : e
+      )
+    );
 
-  const getLessonsForDay = (day: Date) =>
-    lessons.filter((l) => isSameDay(new Date(l.start_at), day));
+    // 2. Отправляем на бэкенд с правильным часовым поясом
+    try {
+      await lessonsApi.updateLessonTime(
+        event.id,
+        toIsoWithTimezone(start),  // ИСПРАВЛЕНО: используем format вместо toISOString
+        toIsoWithTimezone(end)     // ИСПРАВЛЕНО: используем format вместо toISOString
+      );
+      toast.success('Время урока успешно обновлено');
+      if (onLessonsChange) onLessonsChange();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка при переносе урока');
+      // Откат при ошибке
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.id === event.id
+            ? { ...e, start: new Date(event.lesson.start_at), end: new Date(event.lesson.end_at) }
+            : e
+        )
+      );
+    }
+  };
 
-  const prevMonth = () => setCurrentMonth((m) => subMonths(m, 1));
-  const nextMonth = () => setCurrentMonth((m) => addMonths(m, 1));
-  const goToToday = () => setCurrentMonth(new Date());
+  const handleEventResize = async ({ event, start, end }: any) => {
+    // 1. Мгновенно обновляем локально
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === event.id ? { ...e, start, end } : e
+      )
+    );
+
+    // 2. Отправляем на бэкенд с правильным часовым поясом
+    try {
+      await lessonsApi.updateLessonTime(
+        event.id,
+        toIsoWithTimezone(start),  // ИСПРАВЛЕНО
+        toIsoWithTimezone(end)     // ИСПРАВЛЕНО
+      );
+      toast.success('Длительность урока обновлена');
+      if (onLessonsChange) onLessonsChange();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Ошибка при изменении длительности');
+      // Откат при ошибке
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.id === event.id
+            ? { ...e, start: new Date(event.lesson.start_at), end: new Date(event.lesson.end_at) }
+            : e
+        )
+      );
+    }
+  };
+
+  const handleSelectSlot = ({ start }: any) => {
+    if (onDayClick) {
+      const dayLessons = lessons.filter(
+        (l) => new Date(l.start_at).toDateString() === start.toDateString()
+      );
+      onDayClick(start, dayLessons);
+    }
+  };
+
+  const eventPropGetter = (event: CalendarEvent) => {
+    let className = styles.eventDefault;
+    if (event.status === 'COMPLETED') className = styles.eventCompleted;
+    if (event.status === 'CANCELLED') className = styles.eventCancelled;
+    return { className };
+  };
 
   return (
-    <div className={styles.calendar}>
-      {/* Header */}
-      <div className={styles.header}>
-        <button className={styles.navBtn} onClick={prevMonth}>
-          <Icon name="chevronLeft" size={20} />
-        </button>
-        <h2 className={styles.monthTitle}>
-          {format(currentMonth, 'LLLL yyyy', { locale: ru })}
-        </h2>
-        <button className={styles.navBtn} onClick={nextMonth}>
-          <Icon name="chevronRight" size={20} />
-        </button>
-        <button className={styles.todayBtn} onClick={goToToday}>Сегодня</button>
-      </div>
-
-      {/* Weekday labels */}
-      <div className={styles.weekdayRow}>
-        {WEEKDAY_LABELS.map((d) => (
-          <div key={d} className={styles.weekdayLabel}>{d}</div>
-        ))}
-      </div>
-
-      {/* Days grid */}
-      <div className={styles.daysGrid}>
-        {calendarDays.map((day) => {
-          const dayLessons = getLessonsForDay(day);
-          const inMonth = isSameMonth(day, currentMonth);
-          const today = isToday(day);
-
-          return (
-            <div
-              key={day.toISOString()}
-              className={`${styles.dayCell} ${!inMonth ? styles.outsideMonth : ''} ${today ? styles.today : ''} ${dayLessons.length > 0 ? styles.hasLessons : ''}`}
-              onClick={() => onDayClick(day, dayLessons)}
-            >
-              <span className={styles.dayNumber}>{format(day, 'd')}</span>
-              {dayLessons.length > 0 && (
-                <div className={styles.lessonDots}>
-                  {dayLessons.slice(0, 4).map((l) => (
-                    <div
-                      key={l.id}
-                      className={`${styles.lessonDot} ${styles[`status_${l.status.toLowerCase()}`] || ''}`}
-                      title={`${format(new Date(l.start_at), 'HH:mm')} — ${l.students.map((s) => s.student_name).join(', ')}`}
-                    />
-                  ))}
-                  {dayLessons.length > 4 && (
-                    <span className={styles.moreCount}>+{dayLessons.length - 4}</span>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+    <div className={styles.calendarContainer}>
+      <DnDCalendar
+        localizer={localizer}
+        events={events}
+        startAccessor={(event: any) => event.start}
+        endAccessor={(event: any) => event.end}
+        style={{ height: 600 }}
+        defaultView={Views.WEEK}
+        views={[Views.MONTH, Views.WEEK, Views.DAY]}
+        messages={{
+          next: 'След',
+          previous: 'Пред',
+          today: 'Сегодня',
+          month: 'Месяц',
+          week: 'Неделя',
+          day: 'День',
+        }}
+        onEventDrop={handleEventDrop}
+        onEventResize={handleEventResize}
+        resizable
+        onSelectSlot={handleSelectSlot}
+        selectable
+        eventPropGetter={eventPropGetter as any}
+      />
     </div>
   );
 }

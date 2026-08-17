@@ -1,5 +1,10 @@
 import api from './client';
 
+export interface StudentSubject {
+  subject: string;
+  price_per_lesson: number | string;
+}
+
 export interface Student {
   id: number;
   name: string;
@@ -11,7 +16,7 @@ export interface Student {
   base_price: number | string;
   notes: string | null;
   is_active: boolean;
-  subjects: string[];
+  subjects: StudentSubject[]; 
   balance: number | string;
 }
 
@@ -31,7 +36,7 @@ export interface StudentCreate {
   birth_date?: string;
   base_price?: number;
   notes?: string;
-  subjects?: string[];
+  subjects: StudentSubject[]; 
 }
 
 export const studentsApi = {
@@ -41,19 +46,11 @@ export const studentsApi = {
   delete: (id: number) => api.delete(`/students/${id}`),
   toggleActive: (id: number) => api.patch<Student>(`/students/${id}/toggle-active`),
   remindPayment: (id: number) => api.post(`/students/${id}/remind-payment`),
-  
   getBalance: (id: number) => api.get<{ student_id: number; balance: number }>(`/students/${id}/balance`),
-  acceptPayment: (id: number, amount: number, comment?: string) =>
-    api.post(`/students/${id}/payment`, { amount, comment }),
-  
-  adjustBalance: (id: number, amount: number, comment?: string) =>
-    api.post(`/students/${id}/adjust`, { amount, comment }),
-
+  acceptPayment: (id: number, amount: number, comment?: string) => api.post(`/students/${id}/payment`, { amount, comment }),
+  adjustBalance: (id: number, amount: number, comment?: string) => api.post(`/students/${id}/adjust`, { amount, comment }),
   generateInviteCode: (studentId: number) => 
     api.post<{ code: string; expires_at: string; student_name: string }>(`/api/bot/invite/${studentId}`, {}, {
-      headers: {
-
-        'X-Bot-Token': import.meta.env.VITE_BOT_TOKEN || 'your-bot-token-here'
-      }
+      headers: { 'X-Bot-Token': import.meta.env.VITE_BOT_TOKEN || 'your-bot-token-here' }
     }),
 };

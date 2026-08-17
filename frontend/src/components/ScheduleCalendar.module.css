@@ -1,128 +1,242 @@
-.calendar {
+/* ── ScheduleCalendar.module.css ────────────────────────────────────── */
+
+.calendarContainer {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  padding: var(--spacing-md);
   transition: background var(--transition), border-color var(--transition);
 }
 
-/* Header */
-.header {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-lg);
+/* ── Глобальные переопределения react-big-calendar ─────────────────── */
+
+.calendarContainer :global(.rbc-calendar) {
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+}
+
+/* ── Тулбар навигации ──────────────────────────────────────────────── */
+
+.calendarContainer :global(.rbc-toolbar) {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
 }
 
-.monthTitle {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  text-transform: capitalize;
-  min-width: 180px;
-  text-align: center;
+.calendarContainer :global(.rbc-toolbar button) {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
 }
 
-.navBtn {
-  display: flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px;
-  background: none; border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm); color: var(--text-secondary);
-  cursor: pointer; transition: all var(--transition);
-}
-.navBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
-
-.todayBtn {
-  margin-left: auto;
-  padding: 6px 16px;
-  background: none; border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm); font-size: var(--font-size-sm);
-  color: var(--text-secondary); cursor: pointer; transition: all var(--transition);
-}
-.todayBtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
-
-/* Weekday row */
-.weekdayRow {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border-bottom: 1px solid var(--border-color);
+.calendarContainer :global(.rbc-toolbar button:hover) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.08);
 }
 
-.weekdayLabel {
-  padding: var(--spacing-sm);
-  text-align: center;
-  font-size: var(--font-size-xs);
+.calendarContainer :global(.rbc-toolbar button.rbc-active) {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.calendarContainer :global(.rbc-toolbar button.rbc-active:hover) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.calendarContainer :global(.rbc-toolbar label) {
+  margin: 0 var(--spacing-xs);
+}
+
+/* ── Заголовки дней недели ─────────────────────────────────────────── */
+
+.calendarContainer :global(.rbc-header) {
+  background: var(--bg-hover);
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
   text-transform: uppercase;
+  font-size: var(--font-size-xs);
   letter-spacing: 0.5px;
 }
 
-/* Days grid */
-.daysGrid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+/* ── Ячейки дней ───────────────────────────────────────────────────── */
+
+.calendarContainer :global(.rbc-month-row),
+.calendarContainer :global(.rbc-day-bg) {
+  border-color: var(--border-color);
 }
 
-.dayCell {
-  min-height: 100px;
-  padding: var(--spacing-sm);
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  cursor: pointer;
-  transition: background var(--transition);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+.calendarContainer :global(.rbc-off-range-bg) {
+  background: var(--bg-hover);
 }
 
-.dayCell:nth-child(7n) { border-right: none; }
-.dayCell:hover { background: var(--bg-hover); }
-
-.outsideMonth { opacity: 0.35; }
-
-.today {
+.calendarContainer :global(.rbc-today) {
   background: rgba(99, 102, 241, 0.06);
 }
-.today .dayNumber {
-  background: var(--color-primary);
-  color: var(--text-inverse);
-  border-radius: 50%;
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
-}
 
-.dayNumber {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+.calendarContainer :global(.rbc-date-cell) {
+  padding: var(--spacing-xs);
+  font-weight: 500;
   color: var(--text-main);
-  width: 28px; height: 28px;
-  display: flex; align-items: center; justify-content: center;
 }
 
-/* Lesson dots */
-.lessonDots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  align-items: center;
+.calendarContainer :global(.rbc-now) {
+  font-weight: 700;
+  color: var(--color-primary);
 }
 
-.lessonDot {
-  width: 8px; height: 8px;
+/* ── События (уроки) ───────────────────────────────────────────────── */
+
+.calendarContainer :global(.rbc-event) {
+  border-radius: var(--border-radius-sm);
+  border: none;
+  padding: 4px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calendarContainer :global(.rbc-event:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.calendarContainer :global(.rbc-event-content) {
+  font-size: var(--font-size-xs);
+  line-height: 1.3;
+}
+
+.calendarContainer :global(.rbc-event-label) {
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
+}
+
+/* Статусы событий */
+.eventDefault {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.eventCompleted {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.eventCancelled {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  opacity: 0.7;
+}
+
+/* ── Временная сетка (Week/Day view) ───────────────────────────────── */
+
+.calendarContainer :global(.rbc-time-view) {
+  border-color: var(--border-color);
+}
+
+.calendarContainer :global(.rbc-time-header) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.calendarContainer :global(.rbc-time-content) {
+  border-top: 1px solid var(--border-color);
+}
+
+.calendarContainer :global(.rbc-time-column) {
+  border-left: 1px solid var(--border-color);
+}
+
+.calendarContainer :global(.rbc-time-gutter) {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.calendarContainer :global(.rbc-timeslot) {
+  border-color: var(--border-color);
+}
+
+.calendarContainer :global(.rbc-time-slot) {
+  border-top: 1px solid var(--border-color);
+}
+
+.calendarContainer :global(.rbc-current-time-indicator) {
+  background-color: var(--color-danger);
+  height: 2px;
+}
+
+/* ── Drag & Drop стили ─────────────────────────────────────────────── */
+
+.calendarContainer :global(.rbc-addons-dnd-over) {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.calendarContainer :global(.rbc-addons-dnd-dragging) {
+  opacity: 0.7;
+  cursor: move;
+}
+
+.calendarContainer :global(.rbc-addons-dnd-resizable) {
+  position: relative;
+}
+
+.calendarContainer :global(.rbc-addons-dnd-resize-ew-anchor),
+.calendarContainer :global(.rbc-addons-dnd-resize-ns-anchor) {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: white;
+  border: 2px solid var(--color-primary);
   border-radius: 50%;
-  background: var(--color-primary);
+  cursor: ns-resize;
 }
 
-.status_scheduled { background: var(--status-scheduled-text); }
-.status_completed { background: var(--status-completed-text); }
-.status_cancelled { background: var(--status-cancelled-text); }
-
-.moreCount {
-  font-size: 10px;
-  color: var(--text-muted);
-  font-weight: 600;
+.calendarContainer :global(.rbc-addons-dnd-resize-ns-anchor) {
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-.hasLessons { }
+/* ── Адаптивность ──────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .calendarContainer :global(.rbc-toolbar) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .calendarContainer :global(.rbc-toolbar button) {
+    margin: 2px 0;
+  }
+
+  .calendarContainer :global(.rbc-event) {
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+}
+
+/* ── Темная тема (если поддерживается) ─────────────────────────────── */
+
+[data-theme='dark'] .calendarContainer :global(.rbc-event) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .calendarContainer :global(.rbc-event:hover) {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}

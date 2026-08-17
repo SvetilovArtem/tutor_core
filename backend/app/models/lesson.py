@@ -13,6 +13,7 @@ class Lesson(Base):
     tutor_id: Mapped[int] = mapped_column(Integer, ForeignKey("tutors.id"), nullable=False, index=True)
     schedule_rule_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("schedule_rules.id"), nullable=True)
     exception_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("schedule_exceptions.id"), nullable=True)
+    subject: Mapped[str | None] = mapped_column(String(100), nullable=True)
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="SCHEDULED")  # SCHEDULED|COMPLETED|CANCELLED

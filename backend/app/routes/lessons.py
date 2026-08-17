@@ -383,7 +383,6 @@ async def update_lesson_status(
     elif old_status != "COMPLETED" and new_status == "COMPLETED":
         attendance = {ls.student_id: "PRESENT" for ls in lesson.lesson_students}
         
-        # Берем base_price первого ученика (для групповых — одинаковая цена)
         first_student_id = lesson.lesson_students[0].student_id if lesson.lesson_students else None
         default_price = Decimal("25")
         if first_student_id:
@@ -406,6 +405,55 @@ async def update_lesson_status(
     await db.commit()
 
     lesson = await _reload_lesson(db, lesson.id)
+    return await _enrich_lesson_response(lesson, db)
+
+
+# ── ОБНОВЛЕНИЕ ВРЕМЕНИ УРОКА (для Drag & Drop) ───────────────
+
+class LessonTimeUpdate(BaseModel):
+    start_at: datetime
+    end_at: datetime
+
+
+@router.patch("/{lesson_id}/time", response_model=LessonResponse)
+async def update_lesson_time(
+    lesson_id: int,
+    payload: LessonTimeUpdate,
+    tutor: Tutor = Depends(get_current_tutor),
+    db: AsyncSession = Depends(get_db),
+):
+    """Обновить время урока (используется при drag & drop в календаре)."""
+    if payload.start_at >= payload.end_at:
+        raise HTTPException(status_code=400, detail="Время начала должно быть раньше времени окончания")
+
+    result = await db.execute(
+        select(Lesson).where(Lesson.id == lesson_id, Lesson.tutor_id == tutor.id)
+    )
+    lesson = result.scalar_one_or_none()
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Урок не найден")
+
+    if lesson.status != "SCHEDULED":
+        raise HTTPException(status_code=400, detail="Можно переносить только запланированные уроки")
+
+    # Простая проверка на пересечения (можно вынести в сервис)
+    conflict = await db.execute(
+        select(Lesson).where(
+            Lesson.tutor_id == tutor.id,
+            Lesson.id != lesson_id,
+            Lesson.status == "SCHEDULED",
+            Lesson.start_at < payload.end_at,
+            Lesson.end_at > payload.start_at,
+        )
+    )
+    if conflict.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="В это время уже есть другой урок")
+
+    lesson.start_at = payload.start_at
+    lesson.end_at = payload.end_at
+    await db.commit()
+    await db.refresh(lesson)
+
     return await _enrich_lesson_response(lesson, db)
 
 

@@ -317,10 +317,11 @@ export default function SchedulePage() {
       {/* Calendar */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Календарь занятий</h2>
-        <ScheduleCalendar
-          lessons={lessons}
-          onDayClick={(date, dayLessons) => setSelectedDay({ date, lessons: dayLessons })}
-        />
+      <ScheduleCalendar
+        lessons={lessons}
+        onDayClick={(date, dayLessons) => setSelectedDay({ date, lessons: dayLessons })}
+        onLessonsChange={loadData}
+      />
       </div>
 
       {/* ── Modal: Create ──────────────────────────────────── */}

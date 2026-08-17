@@ -34,16 +34,15 @@ export default function StudentsPage() {
   const [formTelegramId, setFormTelegramId] = useState('');
   const [formBirthDate, setFormBirthDate] = useState('');
   const [formNotes, setFormNotes] = useState('');
-  const [formSubjects, setFormSubjects] = useState<string[]>([]);
   const [formBasePrice, setFormBasePrice] = useState('25');
+  
+  const [formSubjects, setFormSubjects] = useState<{ subject: string; price: string }[]>([]);
 
-  // Модалка списания
   const [showDeductModal, setShowDeductModal] = useState<Student | null>(null);
   const [deductAmount, setDeductAmount] = useState('');
   const [deductComment, setDeductComment] = useState('Ошибочное начисление');
   const [processingDeduct, setProcessingDeduct] = useState(false);
 
-  // НОВОЕ: Состояние для кода привязки бота
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [generatingCode, setGeneratingCode] = useState(false);
 
@@ -95,10 +94,11 @@ export default function StudentsPage() {
     setFormSubjects([]);
     setEditingId(null);
     setFormBasePrice('25');
-    setInviteCode(null); // Сбрасываем код при закрытии
+    setInviteCode(null);
   };
 
   const openCreate = () => { resetForm(); setShowModal(true); };
+  
   const openEdit = (s: Student) => {
     setFormName(s.name);
     setFormPhone(s.phone || '');
@@ -106,21 +106,32 @@ export default function StudentsPage() {
     setFormTelegramId(s.telegram_id ? String(s.telegram_id) : '');
     setFormBirthDate(s.birth_date || '');
     setFormNotes(s.notes || '');
-    setFormSubjects([...s.subjects]);
+    setFormSubjects(s.subjects.map(subj => ({ subject: subj.subject, price: String(subj.price_per_lesson) })));
     setEditingId(s.id);
     setFormBasePrice(String(s.base_price || 25));
-    setInviteCode(null); // Сбрасываем старый код при открытии нового ученика
+    setInviteCode(null);
     setShowModal(true);
   };
 
-  const toggleSubject = (subj: string) => {
-    setFormSubjects((prev) => prev.includes(subj) ? prev.filter((s) => s !== subj) : [...prev, subj]);
+  const addSubject = () => {
+    setFormSubjects([...formSubjects, { subject: '', price: String(formBasePrice || 25) }]);
+  };
+
+  const updateSubject = (index: number, field: 'subject' | 'price', value: string) => {
+    const newSubjects = [...formSubjects];
+    newSubjects[index][field] = value;
+    setFormSubjects(newSubjects);
+  };
+
+  const removeSubject = (index: number) => {
+    setFormSubjects(formSubjects.filter((_, i) => i !== index));
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) return;
     setSaving(true);
+    
     const payload: StudentCreate = {
       name: formName.trim(),
       phone: formPhone.trim() || undefined,
@@ -129,8 +140,9 @@ export default function StudentsPage() {
       birth_date: formBirthDate || undefined,
       base_price: Number(formBasePrice) || 25,
       notes: formNotes.trim() || undefined,
-      subjects: formSubjects,
+      subjects: formSubjects.map(s => ({ subject: s.subject, price_per_lesson: Number(s.price) || 0 })),
     };
+    
     try {
       if (editingId) {
         await studentsApi.update(editingId, payload);
@@ -139,10 +151,14 @@ export default function StudentsPage() {
         await studentsApi.create(payload);
         toast.success('Ученик создан');
       }
-      setShowModal(false); resetForm(); loadStudents();
+      setShowModal(false); 
+      resetForm(); 
+      loadStudents();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Ошибка сохранения');
-    } finally { setSaving(false); }
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const handleToggleActive = async (id: number, name: string, currentActive: boolean) => {
@@ -195,7 +211,6 @@ export default function StudentsPage() {
     }
   };
 
-  // НОВОЕ: Обработчик генерации кода
   const handleGenerateInviteCode = async (studentId: number) => {
     setGeneratingCode(true);
     try {
@@ -275,7 +290,11 @@ export default function StudentsPage() {
                     <td>
                       <div className={styles.subjectTags}>
                         {s.subjects.length > 0
-                          ? s.subjects.map((subj) => <span key={subj} className={styles.subjectTag}>{subj}</span>)
+                          ? s.subjects.map((subj, idx) => (
+                              <span key={idx} className={styles.subjectTag}>
+                                {subj.subject} ({subj.price_per_lesson} BYN)
+                              </span>
+                            ))
                           : <span className={styles.noData}>—</span>}
                       </div>
                     </td>
@@ -322,6 +341,7 @@ export default function StudentsPage() {
         )}
       </div>
 
+      {/* МОДАЛКА СОЗДАНИЯ / РЕДАКТИРОВАНИЯ */}
       {showModal && (
         <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
           <form className={styles.modal} onSubmit={handleSave} onClick={(e) => e.stopPropagation()}>
@@ -348,7 +368,6 @@ export default function StudentsPage() {
               />
             </div>
 
-            {/* НОВОЕ: Telegram ID + Кнопка генерации кода */}
             <div className={styles.formGroup}>
               <label className={styles.label}>Telegram ID</label>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -360,6 +379,7 @@ export default function StudentsPage() {
                   placeholder="123456789" 
                   style={{ flex: 1 }}
                 />
+                {/* Кнопка показывается ТОЛЬКО при редактировании существующего ученика */}
                 {editingId && (
                   <button 
                     type="button" 
@@ -374,7 +394,7 @@ export default function StudentsPage() {
               </div>
             </div>
 
-            {/* НОВОЕ: Блок отображения сгенерированного кода */}
+            {/* Блок отображения сгенерированного кода */}
             {inviteCode && (
               <div className={styles.inviteCodeBox}>
                 <p>Отправьте этот код ученику для привязки к боту:</p>
@@ -403,7 +423,7 @@ export default function StudentsPage() {
             </div>
 
             <div className={styles.formGroup}>
-              <label className={styles.label}>Стоимость урока (BYN) *</label>
+              <label className={styles.label}>Стоимость урока по умолчанию (BYN) *</label>
               <input
                 className={styles.input}
                 type="number"
@@ -415,19 +435,54 @@ export default function StudentsPage() {
               />
             </div>
 
-            {tutorSubjects.length > 0 && (
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Предметы</label>
-                <div className={styles.subjectChips}>
-                  {tutorSubjects.map((subj) => (
-                    <label key={subj} className={`${styles.subjectChip} ${formSubjects.includes(subj) ? styles.subjectChipActive : ''}`}>
-                      <input type="checkbox" checked={formSubjects.includes(subj)} onChange={() => toggleSubject(subj)} className={styles.hiddenCheckbox} />
-                      {subj}
-                    </label>
-                  ))}
+            {/* Динамический список предметов с ценами */}
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Предметы и стоимость *</label>
+              {formSubjects.map((subj, index) => (
+                <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <select 
+                    className={styles.input} 
+                    style={{ flex: 2 }}
+                    value={subj.subject} 
+                    onChange={(e) => updateSubject(index, 'subject', e.target.value)}
+                    required
+                  >
+                    <option value="">Выберите предмет</option>
+                    {tutorSubjects.map((tSubj) => (
+                      <option key={tSubj} value={tSubj}>{tSubj}</option>
+                    ))}
+                  </select>
+                  <input 
+                    className={styles.input} 
+                    style={{ flex: 1 }}
+                    type="number" 
+                    min="0" 
+                    step="0.01" 
+                    placeholder="Цена"
+                    value={subj.price} 
+                    onChange={(e) => updateSubject(index, 'price', e.target.value)}
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className={styles.actionBtn} 
+                    onClick={() => removeSubject(index)}
+                    title="Удалить предмет"
+                    style={{ color: 'var(--color-danger)', flex: '0 0 32px' }}
+                  >
+                    <Icon name="trash" size={14} />
+                  </button>
                 </div>
-              </div>
-            )}
+              ))}
+              <button 
+                type="button" 
+                className={styles.submitBtn} 
+                onClick={addSubject} 
+                style={{ marginTop: '8px', width: '100%', background: 'var(--bg-hover)', color: 'var(--text-main)' }}
+              >
+                <Icon name="plus" size={14} /> Добавить предмет
+              </button>
+            </div>
             
             <div className={styles.formGroup}>
               <label className={styles.label}>Заметки</label>
@@ -444,6 +499,7 @@ export default function StudentsPage() {
         </div>
       )}
 
+      {/* МОДАЛКА СПИСАНИЯ БАЛАНСА */}
       {showDeductModal && (
         <div className={styles.modalOverlay} onClick={() => setShowDeductModal(null)}>
           <form className={styles.modal} onSubmit={handleDeductBalance} onClick={(e) => e.stopPropagation()}>

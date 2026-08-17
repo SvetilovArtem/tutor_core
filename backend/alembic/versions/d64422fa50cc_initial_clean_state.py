@@ -1,8 +1,8 @@
-"""initial_schema
+"""initial_clean_state
 
-Revision ID: 41065b34c8c5
+Revision ID: d64422fa50cc
 Revises: 
-Create Date: 2026-08-15 08:42:08.737416
+Create Date: 2026-08-17 08:54:33.675588
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '41065b34c8c5'
+revision: str = 'd64422fa50cc'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -129,6 +129,7 @@ def upgrade() -> None:
     sa.Column('tutor_id', sa.Integer(), nullable=False),
     sa.Column('student_id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=200), nullable=False),
+    sa.Column('subject', sa.String(length=100), nullable=False),
     sa.Column('total_lessons', sa.Integer(), nullable=False),
     sa.Column('remaining_lessons', sa.Integer(), nullable=False),
     sa.Column('price_per_lesson', sa.Numeric(precision=10, scale=2), nullable=False),
@@ -164,9 +165,22 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('rule_id', 'student_id')
     )
+    op.create_table('student_invite_codes',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('student_id', sa.Integer(), nullable=False),
+    sa.Column('code', sa.String(length=20), nullable=False),
+    sa.Column('is_used', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('expires_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_student_invite_codes_code'), 'student_invite_codes', ['code'], unique=True)
+    op.create_index(op.f('ix_student_invite_codes_student_id'), 'student_invite_codes', ['student_id'], unique=False)
     op.create_table('student_subjects',
     sa.Column('student_id', sa.Integer(), nullable=False),
     sa.Column('subject', sa.String(length=100), nullable=False),
+    sa.Column('price_per_lesson', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.ForeignKeyConstraint(['student_id'], ['students.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('student_id', 'subject')
     )
@@ -175,6 +189,7 @@ def upgrade() -> None:
     sa.Column('tutor_id', sa.Integer(), nullable=False),
     sa.Column('schedule_rule_id', sa.Integer(), nullable=True),
     sa.Column('exception_id', sa.Integer(), nullable=True),
+    sa.Column('subject', sa.String(length=100), nullable=True),
     sa.Column('start_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('end_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('status', sa.String(length=20), nullable=False),
@@ -273,6 +288,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_lessons_start_at'), table_name='lessons')
     op.drop_table('lessons')
     op.drop_table('student_subjects')
+    op.drop_index(op.f('ix_student_invite_codes_student_id'), table_name='student_invite_codes')
+    op.drop_index(op.f('ix_student_invite_codes_code'), table_name='student_invite_codes')
+    op.drop_table('student_invite_codes')
     op.drop_table('schedule_rule_students')
     op.drop_index(op.f('ix_schedule_exceptions_rule_id'), table_name='schedule_exceptions')
     op.drop_table('schedule_exceptions')

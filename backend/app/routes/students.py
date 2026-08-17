@@ -31,12 +31,13 @@ async def _to_response(db: AsyncSession, student: Student) -> StudentResponse:
         name=student.name,
         parent_id=student.parent_id,
         phone=student.phone,
+        email=student.email,
         telegram_id=student.telegram_id,
         birth_date=str(student.birth_date) if student.birth_date else None,
         base_price=student.base_price,
         notes=student.notes,
         is_active=student.is_active,
-        subjects=[ss.subject for ss in student.subjects],
+        subjects=[{"subject": ss.subject, "price_per_lesson": ss.price_per_lesson} for ss in student.subjects],
         balance=balance,
     )
 
@@ -95,7 +96,7 @@ async def create_student(
     db: AsyncSession = Depends(get_db),
 ):
     if payload.subjects:
-        invalid = [s for s in payload.subjects if s not in tutor.subjects]
+        invalid = [s.subject for s in payload.subjects if s.subject not in tutor.subjects]
         if invalid:
             raise HTTPException(
                 status_code=400,
@@ -123,8 +124,12 @@ async def create_student(
     db.add(student)
     await db.flush()
 
-    for subj in payload.subjects:
-        db.add(StudentSubject(student_id=student.id, subject=subj))
+    for subj_data in payload.subjects:
+        db.add(StudentSubject(
+            student_id=student.id, 
+            subject=subj_data.subject, 
+            price_per_lesson=subj_data.price_per_lesson
+        ))
 
     await db.commit()
 
@@ -183,7 +188,7 @@ async def update_student(
         setattr(student, field, value)
 
     if payload.subjects is not None:
-        invalid = [s for s in payload.subjects if s not in tutor.subjects]
+        invalid = [s.subject for s in payload.subjects if s.subject not in tutor.subjects]
         if invalid:
             raise HTTPException(
                 status_code=400,
@@ -194,8 +199,12 @@ async def update_student(
             await db.delete(ss)
         await db.flush()
 
-        for subj in payload.subjects:
-            db.add(StudentSubject(student_id=student.id, subject=subj))
+        for subj_data in payload.subjects:
+            db.add(StudentSubject(
+                student_id=student.id, 
+                subject=subj_data.subject, 
+                price_per_lesson=subj_data.price_per_lesson
+            ))
 
     await db.commit()
 
@@ -330,9 +339,6 @@ async def get_student_balance_endpoint(
 
     balance = await get_student_balance(db, student_id)
     return {"student_id": student_id, "balance": float(balance)}
-
-
-# ── НОВЫЙ ЭНДПОИНТ: КОРРЕКТИРОВКА БАЛАНСА ─────────────────────
 
 
 class BalanceAdjustmentRequest(BaseModel):

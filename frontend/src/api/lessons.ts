@@ -73,11 +73,13 @@ export const lessonsApi = {
   deleteAttachment: (attachmentId: number) =>
     api.delete(`/lessons/attachments/${attachmentId}`),
   
-  // НОВОЕ: оплата за урок
   payLesson: (lessonId: number, studentIds: number[], amount: number, comment?: string) =>
     api.post(`/lessons/${lessonId}/pay`, { 
       student_ids: studentIds, 
       amount, 
       comment 
     }),
+
+  updateLessonTime: (lessonId: number, start_at: string, end_at: string) =>
+    api.patch<Lesson>(`/lessons/${lessonId}/time`, { start_at, end_at }),
 };

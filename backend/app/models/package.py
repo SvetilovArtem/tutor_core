@@ -5,7 +5,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.session import Base
 
-
 class Package(Base):
     __tablename__ = "packages"
 
@@ -13,6 +12,7 @@ class Package(Base):
     tutor_id: Mapped[int] = mapped_column(Integer, ForeignKey("tutors.id"), nullable=False, index=True)
     student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
+    subject: Mapped[str] = mapped_column(String(100), nullable=False) 
     total_lessons: Mapped[int] = mapped_column(Integer, nullable=False)
     remaining_lessons: Mapped[int] = mapped_column(Integer, nullable=False)
     price_per_lesson: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)

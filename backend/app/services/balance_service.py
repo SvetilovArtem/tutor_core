@@ -26,7 +26,7 @@ async def complete_lesson(
     lesson_id: int,
     tutor_id: int,
     attendance: dict[int, str],
-    default_price: Decimal = Decimal("25"),
+    default_price: Decimal = Decimal("0"),
 ) -> dict:
     result = await db.execute(
         select(Lesson).where(Lesson.id == lesson_id, Lesson.tutor_id == tutor_id)
@@ -40,38 +40,33 @@ async def complete_lesson(
 
     lesson.status = "COMPLETED"
     processed = 0
+    lesson_subject = getattr(lesson, 'subject', None)
 
     for ls in lesson.lesson_students:
         status = attendance.get(ls.student_id, "ABSENT")
         ls.status = status
 
         if status in ("PRESENT", "ABSENT"):
-            lesson_subject = getattr(lesson, 'subject', None)
+            # 1. Определяем цену урока для этого ученика
+            final_price = default_price
             
-            # 1. Определяем базовую цену для этого ученика
-            student_result = await db.execute(select(Student).where(Student.id == ls.student_id))
-            student = student_result.scalar_one_or_none()
-            final_price = student.base_price if student else default_price
-            
-            # 2. Если указан предмет урока, ищем специальную цену для него
-            if lesson_subject and student:
+            if lesson_subject:
                 subj_result = await db.execute(
-                    select(StudentSubject).where(
-                        StudentSubject.student_id == student.id,
+                    select(StudentSubject.price_per_lesson).where(
+                        StudentSubject.student_id == ls.student_id,
                         StudentSubject.subject == lesson_subject
                     )
                 )
-                subj_record = subj_result.scalar_one_or_none()
-                if subj_record:
-                    final_price = subj_record.price_per_lesson
+                found_price = subj_result.scalar_one_or_none()
+                if found_price is not None:
+                    final_price = Decimal(str(found_price))
 
+            # 2. Ищем активный пакет ученика по предмету урока
             pkg = None
-            # 3. Ищем пакет. Сначала проверяем, привязан ли он уже к уроку
             if ls.package_id:
                 pkg_result = await db.execute(select(Package).where(Package.id == ls.package_id))
                 pkg = pkg_result.scalar_one_or_none()
             
-            # 4. Если пакета нет или он не подходит по предмету, ищем активный пакет по предмету урока
             if (not pkg or (lesson_subject and pkg.subject != lesson_subject)) and lesson_subject:
                 pkg_result = await db.execute(
                     select(Package).where(
@@ -85,18 +80,22 @@ async def complete_lesson(
                 if pkg:
                     ls.package_id = pkg.id
 
-            # 5. Финальный расчет цены и списание
+            # 3. Расчет цены и определение статуса оплаты
             if pkg and pkg.remaining_lessons > 0:
+                # Оплачено пакетом
                 price = pkg.price_per_lesson
                 pkg.remaining_lessons -= 1
                 if pkg.remaining_lessons == 0:
                     pkg.is_active = False
+                ls.is_paid = True
             else:
+                # Списание с баланса
                 price = final_price
+                ls.is_paid = False
 
             ls.price_charged = price
-            ls.is_paid = (pkg is not None and pkg.remaining_lessons >= 0)
             
+            # 4. Создаем транзакцию списания
             current_balance = await get_student_balance(db, ls.student_id)
             new_balance = current_balance - price
 

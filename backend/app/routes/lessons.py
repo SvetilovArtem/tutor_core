@@ -18,6 +18,7 @@ from app.models.tutor import Tutor
 from app.models.student import Student
 from app.models.parent import Parent
 from app.models.lesson import Lesson, LessonStudent
+from app.models.student_subject import StudentSubject
 from app.models.homework_attachment import HomeworkAttachment
 from app.schemas.lesson import LessonCreate, LessonResponse, TrialLessonCreate
 from app.schemas.pagination import PaginatedResponse
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/lessons", tags=["lessons"])
 
 UPLOAD_DIR = Path("uploads/homework")
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 class LessonPaginatedResponse(PaginatedResponse[LessonResponse]):
     pass
@@ -102,17 +103,35 @@ async def _reload_lesson(db: AsyncSession, lesson_id: int) -> Lesson:
     )
     return result.scalar_one()
 
+async def _get_lesson_price(db: AsyncSession, lesson: Lesson, student_id: int) -> Decimal:
+    if not lesson.subject:
+        return Decimal("0")
+    
+    price_result = await db.execute(
+        select(StudentSubject.price_per_lesson).where(
+            StudentSubject.student_id == student_id,
+            StudentSubject.subject == lesson.subject
+        )
+    )
+    found_price = price_result.scalar_one_or_none()
+    if found_price is not None:
+        return Decimal(str(found_price))
+    
+    return Decimal("0")
 
 @router.get("/", response_model=LessonPaginatedResponse)
 async def list_lessons(
     page: int = Query(1, ge=1),
-     limit: int = Query(100, ge=1, le=1000), # Дефолт 15 для уроков
+    limit: int = Query(100, ge=1, le=1000),
     date_from: date | None = None,
     date_to: date | None = None,
     status: str | None = None,
     student_ids: str | None = None,
+    sort_by: str = Query("start_at", description="Поле сортировки: start_at|students|status"),
+    sort_order: str = Query("desc", description="asc или desc"),
     tutor: Tutor = Depends(get_current_tutor),
     db: AsyncSession = Depends(get_db),
+    include_cancelled: bool = Query(False, description="Включая отменённые"),
 ):
     count_query = select(func.count(Lesson.id)).where(Lesson.tutor_id == tutor.id)
     query = (
@@ -130,7 +149,9 @@ async def list_lessons(
     if status:
         count_query = count_query.where(Lesson.status == status)
         query = query.where(Lesson.status == status)
-
+    elif not include_cancelled:
+        count_query = count_query.where(Lesson.status != "CANCELLED")
+        query = query.where(Lesson.status != "CANCELLED")
     if student_ids:
         try:
             ids = [int(x.strip()) for x in student_ids.split(",") if x.strip()]
@@ -144,7 +165,27 @@ async def list_lessons(
     total = (await db.execute(count_query)).scalar() or 0
     total_pages = (total + limit - 1) // limit if total > 0 else 1
 
-    query = query.order_by(Lesson.start_at.desc()).offset((page - 1) * limit).limit(limit)
+    if sort_by == "students":
+        first_student_name = (
+            select(func.min(Student.name))
+            .select_from(Student)
+            .join(LessonStudent, LessonStudent.student_id == Student.id)
+            .where(LessonStudent.lesson_id == Lesson.id)
+            .correlate(Lesson)
+            .scalar_subquery()
+        )
+        sort_column = first_student_name
+    elif sort_by == "status":
+        sort_column = Lesson.status
+    else:
+        sort_column = Lesson.start_at
+
+    if sort_order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    query = query.offset((page - 1) * limit).limit(limit)
     result = await db.execute(query)
     lessons = result.scalars().all()
     
@@ -157,8 +198,6 @@ async def list_lessons(
         "limit": limit,
         "total_pages": total_pages
     }
-
-
 @router.post("/quick", response_model=LessonResponse, status_code=201)
 async def create_quick_lesson(
     payload: QuickLessonCreate,
@@ -207,7 +246,6 @@ async def create_quick_lesson(
     lesson = await _reload_lesson(db, lesson.id)
     return await _enrich_lesson_response(lesson, db)
 
-
 @router.post("/", response_model=LessonResponse, status_code=201)
 async def create_lesson(
     payload: LessonCreate,
@@ -248,7 +286,6 @@ async def create_lesson(
     await db.commit()
     lesson = await _reload_lesson(db, lesson.id)
     return await _enrich_lesson_response(lesson, db)
-
 
 @router.post("/trial", response_model=LessonResponse, status_code=201)
 async def create_trial_lesson(
@@ -301,7 +338,6 @@ async def create_trial_lesson(
 
     return lesson_data
 
-
 @router.delete("/{lesson_id}", status_code=204)
 async def delete_lesson(
     lesson_id: int,
@@ -316,7 +352,6 @@ async def delete_lesson(
     await db.delete(lesson)
     await db.commit()
 
-
 class CompleteLessonRequest(BaseModel):
     attendance: dict[int, str]
     lesson_summary: str | None = None
@@ -330,19 +365,19 @@ async def complete_lesson_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     try:
+        lesson = await _reload_lesson(db, lesson_id)
+        
         first_student_id = list(payload.attendance.keys())[0] if payload.attendance else None
-        default_price = Decimal("25")
-        if first_student_id:
-            student_result = await db.execute(select(Student).where(Student.id == first_student_id))
-            student = student_result.scalar_one_or_none()
-            if student:
-                default_price = student.base_price
+        lesson_price = await _get_lesson_price(db, lesson, first_student_id) if first_student_id else Decimal("0")
 
         await complete_lesson(
-            db=db, lesson_id=lesson_id, tutor_id=tutor.id, attendance=payload.attendance, default_price=default_price
+            db=db, 
+            lesson_id=lesson_id, 
+            tutor_id=tutor.id, 
+            attendance=payload.attendance, 
+            default_price=lesson_price
         )
         
-        lesson = await _reload_lesson(db, lesson_id)
         if payload.lesson_summary:
             lesson.tutor_notes = payload.lesson_summary
         if payload.next_homework:
@@ -353,7 +388,6 @@ async def complete_lesson_endpoint(
         return await _enrich_lesson_response(lesson, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 class LessonStatusUpdate(BaseModel):
     status: str
@@ -384,21 +418,23 @@ async def update_lesson_status(
             await revert_lesson_completion(db, lesson.id, ls.student_id, new_status)
     elif old_status != "COMPLETED" and new_status == "COMPLETED":
         attendance = {ls.student_id: "PRESENT" for ls in lesson.lesson_students}
-        first_student_id = lesson.lesson_students[0].student_id if lesson.lesson_students else None
-        default_price = Decimal("25")
-        if first_student_id:
-            student_result = await db.execute(select(Student).where(Student.id == first_student_id))
-            student = student_result.scalar_one_or_none()
-            if student:
-                default_price = student.base_price
         
-        await complete_lesson(db=db, lesson_id=lesson.id, tutor_id=tutor.id, attendance=attendance, default_price=default_price)
+        lesson = await _reload_lesson(db, lesson.id)
+        first_student_id = lesson.lesson_students[0].student_id if lesson.lesson_students else None
+        lesson_price = await _get_lesson_price(db, lesson, first_student_id) if first_student_id else Decimal("0")
+        
+        await complete_lesson(
+            db=db, 
+            lesson_id=lesson.id, 
+            tutor_id=tutor.id, 
+            attendance=attendance, 
+            default_price=lesson_price
+        )
 
     lesson.status = new_status
     await db.commit()
     lesson = await _reload_lesson(db, lesson.id)
     return await _enrich_lesson_response(lesson, db)
-
 
 class LessonTimeUpdate(BaseModel):
     start_at: datetime
@@ -419,8 +455,8 @@ async def update_lesson_time(
     if not lesson:
         raise HTTPException(status_code=404, detail="Урок не найден")
 
-    if lesson.status != "SCHEDULED":
-        raise HTTPException(status_code=400, detail="Можно переносить только запланированные уроки")
+    if lesson.status in ["COMPLETED", "CANCELLED"]:
+        lesson.status = "SCHEDULED"
 
     conflict = await db.execute(
         select(Lesson).where(
@@ -440,7 +476,6 @@ async def update_lesson_time(
     await db.refresh(lesson)
 
     return await _enrich_lesson_response(lesson, db)
-
 
 class LessonPaymentRequest(BaseModel):
     student_ids: list[int]
@@ -463,7 +498,6 @@ async def pay_lesson(
         raise HTTPException(status_code=400, detail="Оплачивать можно только проведённые уроки")
     
     return await mark_lesson_students_paid(db, lesson_id, payload.student_ids, tutor.id, payload.amount, payload.comment)
-
 
 @router.post("/{lesson_id}/attachments", status_code=201)
 async def upload_homework_attachment(
@@ -506,7 +540,6 @@ async def upload_homework_attachment(
 
     return _attachment_to_dict(attachment)
 
-
 @router.get("/attachments/{attachment_id}/file")
 async def get_attachment_file(attachment_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(HomeworkAttachment).where(HomeworkAttachment.id == attachment_id))
@@ -515,7 +548,6 @@ async def get_attachment_file(attachment_id: int, db: AsyncSession = Depends(get
         raise HTTPException(status_code=404, detail="Файл не найден")
 
     return FileResponse(path=attachment.file_path, media_type=attachment.mime_type, filename=attachment.original_name)
-
 
 @router.delete("/attachments/{attachment_id}", status_code=204)
 async def delete_attachment(

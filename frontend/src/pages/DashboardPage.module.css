@@ -1,486 +1,316 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
-}
-
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-}
-
-.headerTop {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--spacing-md);
+  gap: 24px;
 }
 
 .title {
-  font-size: var(--font-size-2xl);
+  font-size: 24px;
   font-weight: 700;
   margin: 0;
 }
 
-.subtitle {
-  font-size: var(--font-size-md);
-  color: var(--text-secondary);
-  margin: 0;
-  text-transform: capitalize;
-}
-
-.loading {
-  padding: var(--spacing-xl);
-  color: var(--text-muted);
+.loading, .empty {
+  padding: 40px;
   text-align: center;
+  color: var(--text-muted, #9ca3af);
+  font-size: 18px;
 }
 
-/* Карточки статистики */
-.statsGrid {
+/* KPI Cards */
+.kpiGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--spacing-md);
+  gap: 16px;
 }
 
-.statCard {
-  background: var(--bg-card);
-  padding: var(--spacing-lg);
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-card);
+.card {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 20px;
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  transition: all var(--transition);
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.statCard.clickable {
-  cursor: pointer;
-}
-
-.statCard.clickable:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-hover, 0 4px 12px rgba(0, 0, 0, 0.1));
-}
-
-.statIcon {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--border-radius-md);
+.cardIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
   flex-shrink: 0;
 }
 
-.statContent {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.incomeCard .cardIcon { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.studentsCard .cardIcon { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+.debtCard .cardIcon { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.lessonsCard .cardIcon { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
+.cardLabel {
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  margin-bottom: 4px;
 }
 
-.statValue {
-  font-size: var(--font-size-2xl);
+.cardValue {
+  font-size: 24px;
   font-weight: 700;
-  color: var(--text-main);
-  line-height: 1;
+  color: var(--text-main, #111827);
 }
 
-.statLabel {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-}
-
-/* Основной контент */
-.contentGrid {
+/* Charts */
+.chartsGrid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: var(--spacing-lg);
+  gap: 16px;
 }
 
-@media (max-width: 1024px) {
-  .contentGrid {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 900px) {
+  .chartsGrid { grid-template-columns: 1fr; }
 }
 
-.rightColumn {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
+.chartCard, .listCard {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.section {
-  background: var(--bg-card);
-  padding: var(--spacing-lg);
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-card);
-}
-
-.sectionHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-md);
-}
-
-.sectionTitle {
-  font-size: var(--font-size-lg);
+.chartTitle {
+  font-size: 16px;
   font-weight: 600;
-  margin: 0;
-  color: var(--text-main);
+  margin: 0 0 16px 0;
+  color: var(--text-main, #111827);
 }
 
-.viewAllBtn {
-  background: none;
-  border: none;
-  color: var(--color-primary);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--border-radius-sm);
-  transition: background var(--transition);
-}
-
-.viewAllBtn:hover {
-  background: rgba(99, 102, 241, 0.08);
-}
-
-.empty {
-  color: var(--text-muted);
-  padding: var(--spacing-lg) 0;
+.emptyChart, .emptyText {
   text-align: center;
-  font-size: var(--font-size-sm);
+  color: var(--text-muted, #9ca3af);
+  padding: 40px 0;
 }
 
-/* Список уроков */
-.lessonList {
+.legend {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-sm);
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+  flex-wrap: wrap;
 }
 
-.lessonCard {
+.legendItem {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  transition: all var(--transition);
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
 }
 
-.lessonCard.clickable:hover {
-  border-color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.04);
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Bottom Lists */
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .bottomGrid { grid-template-columns: 1fr; }
+}
+
+.lessonList, .debtorList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lessonItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-hover, #f9fafb);
+  border-radius: 8px;
 }
 
 .lessonTime {
   font-weight: 600;
-  min-width: 120px;
-  color: var(--color-primary);
-  font-size: var(--font-size-sm);
+  font-size: 14px;
+  color: var(--text-main, #111827);
+  min-width: 50px;
+}
+
+.lessonInfo {
+  flex: 1;
 }
 
 .lessonStudents {
-  flex: 1;
-  display: flex;
-  gap: var(--spacing-xs);
-  flex-wrap: wrap;
-}
-
-.studentName {
-  background: rgba(99, 102, 241, 0.1);
-  color: var(--color-primary);
-  padding: 2px 10px;
-  border-radius: 99px;
-  font-size: var(--font-size-xs);
   font-weight: 500;
+  font-size: 14px;
+  color: var(--text-main, #111827);
 }
 
-.lessonMeta {
-  display: flex;
-  gap: var(--spacing-sm);
-  align-items: center;
-}
-
-.subjectBadge {
-  background: rgba(139, 92, 246, 0.1);
-  color: #8b5cf6;
-  padding: 2px 8px;
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-}
-
-.duration {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-}
-
-/* Список должников */
-.debtorList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+.lessonSubject {
+  font-size: 12px;
+  color: var(--text-muted, #9ca3af);
 }
 
 .debtorItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-sm);
-  border-radius: var(--border-radius-sm);
-  transition: background var(--transition);
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
 }
 
-.debtorItem.clickable:hover {
-  background: var(--bg-hover);
-}
-
-.debtorInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+.debtorItem:last-child { border-bottom: none; }
 
 .debtorName {
-  font-weight: 600;
-  color: var(--text-main);
-  font-size: var(--font-size-sm);
-}
-
-.debtorPhone {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 14px;
 }
 
 .debtorBalance {
   font-weight: 700;
-  color: var(--color-danger);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--font-size-sm);
+  color: #ef4444;
+  font-size: 14px;
 }
 
-/* Список предметов */
-.subjectsList {
+/* ── Period Selector ───────────────────────────────────────── */
+.periodSelector {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
+  gap: 4px;
+  background: var(--bg-hover, #f3f4f6);
+  padding: 4px;
+  border-radius: 8px;
 }
 
-.subjectTag {
-  background: rgba(99, 102, 241, 0.1);
-  color: var(--color-primary);
-  padding: 6px 14px;
-  border-radius: 99px;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-}
-
-/* Кнопка разового урока */
-.quickLessonBtn {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: 10px 20px;
-  background: var(--color-primary);
-  color: var(--text-inverse);
+.periodBtn {
+  padding: 6px 12px;
   border: none;
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-md);
-  font-weight: 600;
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background var(--transition);
-  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
-.quickLessonBtn:hover {
-  background: var(--color-primary-hover);
+.periodBtn:hover {
+  color: var(--text-main, #111827);
 }
 
-/* Модалка */
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+.periodBtn.active {
+  background: var(--bg-card, #ffffff);
+  color: var(--color-primary, #6366f1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.headerRow {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: var(--spacing-lg);
-  overflow-y: auto;
-  animation: fadeIn 0.15s ease;
+  margin-bottom: 8px;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.modal {
-  background: var(--bg-card);
-  padding: var(--spacing-xl);
-  border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-modal);
-  width: 100%;
-  max-width: 520px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  border: 1px solid var(--border-color);
-  animation: slideUp 0.2s ease;
-}
-
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-.modalTitle {
-  font-size: var(--font-size-xl);
+.title {
+  font-size: 24px;
   font-weight: 700;
   margin: 0;
 }
 
-.modalHint {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  margin: calc(var(--spacing-sm) * -1) 0 0 0;
-}
-
-.formGroup {
+.periodSelector {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: 4px;
+  background: var(--bg-hover, #f3f4f6);
+  padding: 4px;
+  border-radius: 8px;
 }
 
-.formRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-md);
-}
-
-.label {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: var(--text-main);
-}
-
-.input, .textarea {
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-md);
-  outline: none;
-  background: var(--bg-input);
-  color: var(--text-main);
-  font-family: inherit;
-  transition: border-color var(--transition);
-}
-
-.input:focus, .textarea:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-.modalActions {
-  display: flex;
-  gap: var(--spacing-sm);
-  justify-content: flex-end;
-  margin-top: var(--spacing-sm);
-}
-
-.cancelBtn {
-  padding: 10px 20px;
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  cursor: pointer;
-  font-size: var(--font-size-md);
-  color: var(--text-secondary);
-  transition: all var(--transition);
-}
-
-.cancelBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
-}
-
-.submitBtn {
-  padding: 10px 20px;
-  background: var(--color-primary);
-  color: var(--text-inverse);
+.periodBtn {
+  padding: 6px 14px;
   border: none;
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--transition);
-}
-
-.submitBtn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-}
-
-.submitBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Выбор учеников */
-.studentPicker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-sm);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius-sm);
-  background: var(--bg-input);
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.studentChipPicker {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 99px;
-  font-size: var(--font-size-sm);
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  font-size: 13px;
   font-weight: 500;
+  border-radius: 6px;
   cursor: pointer;
-  user-select: none;
-  transition: all var(--transition);
-  background: var(--bg-card);
-  color: var(--text-main);
+  transition: all 0.2s ease;
 }
 
-.studentChipPicker:hover {
-  border-color: var(--color-primary);
+.periodBtn:hover {
+  color: var(--text-main, #111827);
 }
 
-.studentChipActive {
-  background: var(--color-primary);
-  color: #fff;
-  border-color: var(--color-primary);
+.periodBtn.active {
+  background: var(--bg-card, #ffffff);
+  color: var(--color-primary, #6366f1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  font-weight: 600;
 }
 
-.studentChipActive:hover {
-  background: var(--color-primary-hover);
+.resetDateBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #9ca3af);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
 }
 
-.hiddenCheckbox {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+.resetDateBtn:hover {
+  background: var(--bg-hover, #f3f4f6);
+  color: var(--color-danger, #ef4444);
 }
 
-.emptyHint {
-  color: var(--text-muted);
-  font-size: var(--font-size-sm);
-  padding: var(--spacing-sm);
+.dateRangePicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-input, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+}
+
+.dateRangePicker input {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 4px;
+  font-size: 13px;
+  background: var(--bg-card, #ffffff);
+  color: var(--text-main, #111827);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.dateRangePicker input:focus {
+  border-color: var(--color-primary, #6366f1);
+}
+
+.dateRangePicker input[type="number"] {
+  width: 80px;
+  text-align: center;
+}
+
+.dateSeparator {
+  color: var(--text-muted, #9ca3af);
+  font-size: 14px;
 }

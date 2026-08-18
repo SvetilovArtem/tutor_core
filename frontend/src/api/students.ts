@@ -1,4 +1,5 @@
 import api from './client';
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -20,11 +21,11 @@ export interface Student {
   email: string | null;
   telegram_id: number | null;
   birth_date: string | null;
-  base_price: number;
   notes: string | null;
   is_active: boolean;
   subjects: StudentSubject[];
   balance: number;
+  invite_code?: string | null;
 }
 
 export interface StudentsListParams {
@@ -43,7 +44,6 @@ export interface StudentCreate {
   email?: string;
   telegram_id?: number;
   birth_date?: string;
-  base_price: number;
   notes?: string;
   subjects: { subject: string; price_per_lesson: number }[];
 }
@@ -54,30 +54,22 @@ export interface StudentUpdate {
   email?: string;
   telegram_id?: number;
   birth_date?: string;
-  base_price?: number;
   notes?: string;
   subjects?: { subject: string; price_per_lesson: number }[];
+  invite_code?: string | null;
 }
 
 export const studentsApi = {
-
   list: (params?: StudentsListParams) => 
     api.get<PaginatedResponse<Student>>('/students/', { params }),
 
   create: (data: StudentCreate) => api.post<Student>('/students/', data),
-  
   get: (id: number) => api.get<Student>(`/students/${id}`),
-  
   update: (id: number, data: StudentUpdate) => api.patch<Student>(`/students/${id}`, data),
-  
   toggleActive: (id: number) => api.patch<Student>(`/students/${id}/toggle-active`, {}),
-  
   delete: (id: number) => api.delete(`/students/${id}`),
-  
   remindPayment: (id: number) => api.post(`/students/${id}/remind-payment`),
-  
   adjustBalance: (id: number, amount: number, comment?: string) => 
     api.post(`/students/${id}/adjust`, { amount, comment }),
-    
   generateInviteCode: (id: number) => api.post<{ code: string }>(`/students/${id}/invite-code`),
 };

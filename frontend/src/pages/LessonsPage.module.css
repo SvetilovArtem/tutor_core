@@ -519,3 +519,101 @@
   min-width: 140px;
   animation: fadeIn 0.1s ease;
 }
+
+/* Кнопка "Все оплатили" — зелёная, не disabled визуально */
+.paidBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid var(--color-success, #22c55e);
+  border-radius: var(--border-radius-sm, 6px);
+  color: var(--color-success, #22c55e);
+  cursor: default;
+  flex-shrink: 0;
+  opacity: 1 !important;
+}
+
+.paidBtn svg {
+  fill: currentColor;
+}
+
+/* Кнопка оплаты — оранжевая */
+.payBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid var(--color-warning, #f59e0b);
+  border-radius: var(--border-radius-sm, 6px);
+  color: var(--color-warning, #f59e0b);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.payBtn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--color-warning, #f59e0b);
+}
+
+/* Кнопка восстановления — синяя */
+.restoreBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid var(--color-primary, #3b82f6);
+  border-radius: var(--border-radius-sm, 6px);
+  color: var(--color-primary, #3b82f6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.restoreBtn:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+/* Нет учеников */
+.noStudents {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-muted, #9ca3af);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* ── Sortable Headers ────────────────────────────────────────── */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s ease;
+}
+
+.sortable:hover {
+  color: var(--color-primary, #6366f1);
+}
+
+.sortIcon {
+  margin-left: 4px;
+  font-weight: 700;
+  color: var(--color-primary, #6366f1);
+}
+
+.sortIconPlaceholder {
+  margin-left: 4px;
+  opacity: 0.3;
+}

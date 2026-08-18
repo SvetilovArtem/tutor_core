@@ -25,7 +25,7 @@ app.include_router(lessons.router)
 app.include_router(cancellations.router)
 app.include_router(finance.router)
 app.include_router(bot_api.router)
-app.include_router(dashboard.router, prefix="/api")
+app.include_router(dashboard.router)
 
 @app.get("/health")
 async def health():

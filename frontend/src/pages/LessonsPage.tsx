@@ -13,6 +13,7 @@ import Pagination from '../components/Pagination';
 import { lessonsApi, type Lesson } from '../api/lessons';
 import { studentsApi, type Student } from '../api/students';
 import styles from './LessonsPage.module.css';
+import PaginationBar from '../components/PaginationBar';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },
@@ -20,6 +21,15 @@ const STATUS_OPTIONS = [
   { value: 'COMPLETED', label: 'Проведён' },
   { value: 'CANCELLED', label: 'Отменён' },
 ];
+
+type SortField = 'start_at' | 'students' | 'status';
+type SortOrder = 'asc' | 'desc';
+
+interface SortConfig {
+  field: SortField;
+  order: SortOrder;
+}
+
 
 const STORAGE_KEY = 'lessons_pagination_state';
 
@@ -72,6 +82,8 @@ export default function LessonsPage() {
   const [paymentComment, setPaymentComment] = useState('');
   const [processingPayment, setProcessingPayment] = useState(false);
 
+  const [sort, setSort] = useState<SortConfig>({ field: 'start_at', order: 'desc' });
+
   const syncPagination = (page: number, limitVal: number) => {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ page, limit: limitVal }));
     setSearchParams(prev => {
@@ -95,24 +107,22 @@ export default function LessonsPage() {
       date_to: filterDateTo || undefined,
       status: filterStatus || undefined,
       student_ids: filterStudentIds.length ? filterStudentIds : undefined,
+      sort_by: sort.field,
+      sort_order: sort.order,
+      include_cancelled: showCancelled,
     })
       .then((r) => {
-        const filtered = showCancelled
-          ? r.data.items
-          : r.data.items.filter((l) => l.status !== 'CANCELLED');
-
-        if (filtered.length === 0 && currentPage > 1) {
+        if (r.data.items.length === 0 && currentPage > 1) {
           setCurrentPage(1);
           syncPagination(1, limit);
           return;
         }
-
-        setLessons(filtered);
+        setLessons(r.data.items);
         setTotalPages(r.data.total_pages);
       })
       .catch(() => toast.error('Ошибка загрузки уроков'))
       .finally(() => setLoading(false));
-  }, [currentPage, limit, filterDateFrom, filterDateTo, filterStatus, filterStudentIds, showCancelled]);
+  }, [currentPage, limit, filterDateFrom, filterDateTo, filterStatus, filterStudentIds, showCancelled, sort]);
 
   useEffect(() => {
     if (!loading && highlightId && highlightedRef.current) {
@@ -131,6 +141,20 @@ export default function LessonsPage() {
       setOpenStatusId(null);
     }
   };
+
+  const handleSort = (field: SortField) => {
+  setCurrentPage(1);
+  syncPagination(1, limit);
+  setSort((prev) => ({
+    field,
+    order: prev.field === field && prev.order === 'asc' ? 'desc' : 'asc',
+  }));
+};
+
+const SortIcon = ({ field }: { field: SortField }) => {
+  if (sort.field !== field) return <span className={styles.sortIconPlaceholder}>↕</span>;
+  return <span className={styles.sortIcon}>{sort.order === 'asc' ? '↑' : '↓'}</span>;
+};
 
   const handleUploadAttachment = async (lessonId: number, file: File) => {
     const res = await lessonsApi.uploadAttachment(lessonId, file);
@@ -176,9 +200,10 @@ export default function LessonsPage() {
         date_to: filterDateTo || undefined,
         status: filterStatus || undefined,
         student_ids: filterStudentIds.length ? filterStudentIds : undefined,
+        include_cancelled: showCancelled
       });
-      const filtered = showCancelled ? res.data.items : res.data.items.filter((l) => l.status !== 'CANCELLED');
-      setLessons(filtered);
+
+      setLessons(res.data.items);
       setTotalPages(res.data.total_pages);
     } catch {
       toast.error('Ошибка восстановления');
@@ -334,9 +359,15 @@ export default function LessonsPage() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Дата и время</th>
-                <th>Ученики</th>
-                <th>Статус</th>
+                <th onClick={() => handleSort('start_at')} className={styles.sortable}>
+                  Дата и время <SortIcon field="start_at" />
+                </th>
+                <th onClick={() => handleSort('students')} className={styles.sortable}>
+                  Ученики <SortIcon field="students" />
+                </th>
+                <th onClick={() => handleSort('status')} className={styles.sortable}>
+                  Статус <SortIcon field="status" />
+                </th>
                 <th>Домашнее задание</th>
                 <th className={styles.actionsHeader}>Действия</th>
               </tr>
@@ -393,12 +424,14 @@ export default function LessonsPage() {
                           <Icon name="refresh" size={14} />
                         </button>
                       ) : isCompleted ? (
-                        hasUnpaid ? (
+                        l.students.length === 0 ? (
+                          <span className={styles.noStudents}>—</span>
+                        ) : hasUnpaid ? (
                           <button className={styles.payBtn} onClick={() => openPaymentModal(l)} title="Есть неоплаченные ученики">
                             <Icon name="wallet" size={14} />
                           </button>
                         ) : (
-                          <button className={styles.paidBtn} title="Все ученики оплатили" disabled>
+                          <button className={styles.paidBtn} title="Все ученики оплатили">
                             <Icon name="check" size={14} />
                           </button>
                         )
@@ -416,37 +449,22 @@ export default function LessonsPage() {
         )}
       </div>
 
-      {!loading && totalPages > 1 && (
-        <div className={styles.paginationWrapper}>
-          <div className={styles.limitSelector}>
-            <label>Показывать по:</label>
-            <select 
-              className={styles.limitSelect}
-              value={limit} 
-              onChange={(e) => {
-                const newLimit = Number(e.target.value);
-                setLimit(newLimit);
-                setCurrentPage(1);
-                syncPagination(1, newLimit);
-              }}
-            >
-              <option value={10}>10</option>
-              <option value={15}>15</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
-          
-          <Pagination 
-            currentPage={currentPage} 
-            totalPages={totalPages} 
-            onPageChange={(page) => {
-              setCurrentPage(page);
-              syncPagination(page, limit);
-            }} 
-          />
-        </div>
-      )}
+      <PaginationBar
+        visible={!loading && lessons.length > 0}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        limit={limit}
+        limitOptions={[10, 15, 25, 50]}
+        onPageChange={(page) => {
+          setCurrentPage(page);
+          syncPagination(page, limit);
+        }}
+        onLimitChange={(newLimit) => {
+          setLimit(newLimit);
+          setCurrentPage(1);
+          syncPagination(1, newLimit);
+        }}
+      />
 
       {openStatusId !== null && (
         <StatusDropdownPortal

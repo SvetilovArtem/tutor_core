@@ -22,6 +22,8 @@ class Student(Base):
         Numeric(10, 2), nullable=False, default=Decimal("25.00"), server_default="25.00",
     )
 
+    invite_code: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True)
+
     parent: Mapped["Parent | None"] = relationship(back_populates="students")
     subjects: Mapped[list["StudentSubject"]] = relationship(
         cascade="all, delete-orphan",

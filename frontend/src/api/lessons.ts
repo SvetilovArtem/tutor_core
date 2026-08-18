@@ -71,7 +71,7 @@ export interface TrialLessonCreate {
 
 export const lessonsApi = {
 
-  list: (params?: { page?: number; limit?: number; date_from?: string; date_to?: string; status?: string; student_ids?: number[] }) => {
+  list: (params?: { page?: number; limit?: number; date_from?: string; date_to?: string; status?: string; student_ids?: number[]; sort_by?: string; sort_order?: string; include_cancelled?: boolean }) => {
     const queryParams: any = params ? { ...params } : {};
     if (params?.student_ids && params.student_ids.length > 0) {
       queryParams.student_ids = params.student_ids.join(',');

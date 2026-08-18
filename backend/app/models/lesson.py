@@ -50,6 +50,6 @@ class LessonStudent(Base):
     transaction_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("transactions.id"), nullable=True)
     lesson: Mapped["Lesson"] = relationship(back_populates="lesson_students")
 
-    is_paid: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    is_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     transaction: Mapped["Transaction"] = relationship()

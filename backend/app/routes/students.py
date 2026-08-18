@@ -1,6 +1,7 @@
 """CRUD для учеников. Все операции scoped по tutor_id через JWT."""
 
 from decimal import Decimal
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -36,17 +37,17 @@ async def _to_response(db: AsyncSession, student: Student) -> StudentResponse:
         email=student.email,
         telegram_id=student.telegram_id,
         birth_date=str(student.birth_date) if student.birth_date else None,
-        base_price=student.base_price,
         notes=student.notes,
         is_active=student.is_active,
         subjects=[{"subject": ss.subject, "price_per_lesson": ss.price_per_lesson} for ss in student.subjects],
         balance=balance,
+        invite_code=student.invite_code,
     )
 
 @router.get("/", response_model=StudentPaginatedResponse)
 async def list_students(
     page: int = Query(1, ge=1),
-    limit: int = Query(25, ge=1, le=100), # Дефолт 25 для учеников
+    limit: int = Query(25, ge=1, le=100),
     search: str | None = Query(None, description="Поиск по имени/телефону"),
     subject: str | None = Query(None, description="Фильтр по предмету"),
     is_active: bool | None = Query(None, description="Фильтр по активности"),
@@ -377,3 +378,25 @@ async def adjust_balance_endpoint(
         return await adjust_student_balance(db, student_id, tutor.id, payload.amount, payload.comment)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{student_id}/invite-code", status_code=200)
+async def generate_invite_code(
+    student_id: int,
+    tutor: Tutor = Depends(get_current_tutor),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            _student_belongs_to_tutor_query(tutor.id),
+        )
+    )
+    student = result.scalar_one_or_none()
+    if not student:
+        raise HTTPException(status_code=404, detail="Ученик не найден")
+
+    new_code = str(uuid.uuid4()).replace('-', '')[:8].upper()
+    student.invite_code = new_code
+    await db.commit()
+
+    return {"code": new_code}

@@ -1,4 +1,5 @@
 import api from './client';
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -63,12 +64,31 @@ export interface ScheduleExceptionCreate {
   comment?: string;
 }
 
+export interface ExistingLessonInfo {
+  id: number;
+  start_at: string;
+  end_at: string;
+  subject: string | null;
+  students: string[];
+}
+
+export interface DayPreview {
+  date: string;
+  start_at: string;
+  end_at: string;
+  conflict: boolean;
+  existing_lesson: ExistingLessonInfo | null;
+}
+
+export interface RulePreviewResponse {
+  days: DayPreview[];
+}
+
 export const scheduleApi = {
- 
   listRules: (params?: { page?: number; limit?: number; student_id?: number }) => 
     api.get<PaginatedResponse<ScheduleRule>>('/schedule/rules', { params }),
 
-  createRule: (data: ScheduleRuleCreate) => api.post<ScheduleRule>('/schedule/rules', data),
+  createRule: (data: ScheduleRuleCreate) => api.post<any>('/schedule/rules', data),
   updateRule: (id: number, data: ScheduleRuleUpdate) => api.patch<ScheduleRule>(`/schedule/rules/${id}`, data),
   deleteRule: (id: number) => api.delete(`/schedule/rules/${id}`),
 
@@ -79,5 +99,25 @@ export const scheduleApi = {
   deleteException: (id: number) => api.delete(`/schedule/exceptions/${id}`),
 
   generate: (date_from: string, date_to: string) => 
-    api.post<{ created: number }>('/schedule/generate', { date_from, date_to }),
+    api.post<{ created: number; skipped_dates?: string[] }>('/schedule/generate', { date_from, date_to }),
+
+  previewRule: (data: {
+    weekday: number;
+    start_time: string;
+    duration_minutes: number;
+    student_ids: number[];
+    effective_from: string;
+    effective_to?: string;
+  }) => api.post<RulePreviewResponse>('/schedule/rules/preview', data),
+  
+  createRuleWithSelectedDays: (data: {
+    weekday: number;
+    start_time: string;
+    duration_minutes: number;
+    student_ids: number[];
+    effective_from: string;
+    effective_to?: string;
+    selected_dates: string[];
+    replace_dates: string[];
+  }) => api.post('/schedule/rules/create-selected', data),
 };

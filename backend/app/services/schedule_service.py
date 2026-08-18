@@ -79,9 +79,6 @@ async def generate_lessons(
             start_at = datetime.combine(current, start_t)
             end_at = start_at + timedelta(minutes=dur)
 
-            # ИСПРАВЛЕНО: Проверяем наличие урока у репетитора в это время,
-            # НЕ привязываясь к schedule_rule_id. Это предотвращает дубликаты,
-            # если урок уже существует (например, был создан вручную).
             existing = await db.execute(
                 select(Lesson).where(
                     Lesson.tutor_id == tutor_id,
@@ -89,7 +86,7 @@ async def generate_lessons(
                 )
             )
             
-            if existing.scalar_one_or_none():
+            if existing.scalars().first():
                 skipped += 1
                 current += timedelta(days=1)
                 continue
@@ -106,7 +103,6 @@ async def generate_lessons(
             db.add(lesson)
             await db.flush()
 
-            # Создаем связи для ВСЕХ учеников в правиле (группа или индивидуальный)
             for student in rule.students:
                 ls = LessonStudent(
                     lesson_id=lesson.id,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import Icon from '../components/Icon';
 import { scheduleApi, type ScheduleRule, type ScheduleRuleUpdate } from '../api/schedules';
@@ -10,6 +11,7 @@ import { lessonsApi, type Lesson } from '../api/lessons';
 import DateRangeField from '../components/DateRangeField';
 import ScheduleCalendar from '../components/ScheduleCalendar';
 import DayDetailModal from '../components/DayDetailModal';
+import CreateRuleWizard from '../components/CreateRuleWizard'; 
 import styles from './SchedulePage.module.css';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -43,6 +45,8 @@ export default function SchedulePage() {
   const [formFrom, setFormFrom] = useState(new Date().toISOString().split('T')[0]);
   const [formTo, setFormTo] = useState<string | null>(null);
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([createEmptyBlock()]);
+
+  const [showRuleWizard, setShowRuleWizard] = useState(false); 
 
   const [editingRule, setEditingRule] = useState<ScheduleRule | null>(null);
   const [editForm, setEditForm] = useState<{
@@ -129,28 +133,67 @@ export default function SchedulePage() {
     setFormStudentIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
   
+  const getErrorMsg = (err: any) => {
+    const detail = err.response?.data?.detail;
+    if (Array.isArray(detail)) {
+      return detail.map((d: any) => d.msg).join('; ');
+    }
+    return typeof detail === 'string' ? detail : 'Произошла ошибка';
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
     try {
-      const promises = dayBlocks.map((block) =>
-        scheduleApi.createRule({
+      let totalCreated = 0;
+      let allSkippedDates: string[] = [];
+
+      for (const block of dayBlocks) {
+        const res = await scheduleApi.createRule({
           student_ids: formStudentIds,
           group_name: formGroupName.trim() || null,
           weekday: block.weekday,
           start_time: `${block.time}:00`,
           duration_minutes: Number(block.duration),
           effective_from: formFrom,
-          effective_to: formTo || null,
-        }),
-      );
-      await Promise.all(promises);
-      toast.success(`Создано правил: ${dayBlocks.length}`);
+          effective_to: formTo || undefined,
+        });
+        
+        totalCreated += res.data.created_lessons || 0;
+        if (res.data.skipped_dates && res.data.skipped_dates.length > 0) {
+          allSkippedDates = [...allSkippedDates, ...res.data.skipped_dates];
+        }
+      }
+
+      // ИСПРАВЛЕНО 1: Array.from вместо [...new Set()] для совместимости с TS target
+      const uniqueSkipped = Array.from(new Set(allSkippedDates)).sort();
+
+      if (uniqueSkipped.length > 0) {
+        const formattedDates = uniqueSkipped
+          .filter(d => {
+            const dateObj = new Date(d);
+            return !isNaN(dateObj.getTime()); 
+          })
+          .map((d) => format(new Date(d), 'dd.MM.yyyy', { locale: ru }))
+          .join(', ');
+        
+        // ИСПРАВЛЕНО 2: toast.warning не существует, используем toast с иконкой
+        toast(
+          `Создано уроков: ${totalCreated}. Пропущены даты из-за наложения: ${formattedDates}`,
+          { 
+            duration: 8000,
+            icon: '⚠️'
+          }
+        );
+      } else {
+        toast.success(`Успешно создано ${totalCreated} уроков по расписанию`);
+      }
+
       setShowCreateModal(false);
       resetCreateForm();
       loadData();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Ошибка создания');
+      toast.error(getErrorMsg(err));
     } finally {
       setCreating(false);
     }
@@ -195,7 +238,7 @@ export default function SchedulePage() {
       setEditingRule(null);
       loadData();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Ошибка обновления');
+      toast.error(getErrorMsg(err));
     } finally {
       setSaving(false);
     }
@@ -214,8 +257,8 @@ export default function SchedulePage() {
       await scheduleApi.deleteRule(id);
       toast.success('Правило удалено');
       setRules((prev) => prev.filter((r) => r.id !== id));
-    } catch {
-      toast.error('Ошибка удаления');
+    } catch (err: any) {
+      toast.error(getErrorMsg(err));
     }
   };
 
@@ -238,7 +281,7 @@ export default function SchedulePage() {
       setShowGenModal(false);
       loadData();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Ошибка генерации');
+      toast.error(getErrorMsg(err));
     } finally {
       setGenerating(false);
     }
@@ -272,11 +315,7 @@ export default function SchedulePage() {
       setLessonHomework('');
       loadData();
     } catch (err: any) {
-      const errorDetail = err.response?.data?.detail;
-      let errorMessage = 'Ошибка создания урока';
-      if (typeof errorDetail === 'string') errorMessage = errorDetail;
-      else if (Array.isArray(errorDetail) && errorDetail.length > 0) errorMessage = errorDetail[0].msg;
-      toast.error(errorMessage);
+      toast.error(getErrorMsg(err));
     } finally {
       setSavingLesson(false);
     }
@@ -284,12 +323,6 @@ export default function SchedulePage() {
 
   const toggleLessonStudent = (id: number) => {
     setLessonStudentIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
-
-  const formatStudents = (rule: ScheduleRule) => {
-    if (rule.students.length === 0) return rule.group_name || 'Групповое';
-    if (rule.students.length === 1) return rule.students[0].name;
-    return rule.group_name || `${rule.students.length} учеников`;
   };
 
   if (loading) return <div className={styles.empty}>Загрузка...</div>;
@@ -302,9 +335,11 @@ export default function SchedulePage() {
           <button className={styles.addBtn} onClick={() => setShowCreateLesson(true)}>
             <Icon name="plus" size={18} /> Создать урок
           </button>
-          <button className={styles.addBtn} onClick={() => setShowCreateModal(true)}>
+          
+          <button className={styles.addBtn} onClick={() => setShowRuleWizard(true)}>
             <Icon name="calendar" size={18} /> Новое правило
           </button>
+          
           <button className={styles.generateBtn} onClick={() => setShowGenModal(true)}>
             <Icon name="refresh" size={18} /> Сгенерировать уроки
           </button>
@@ -369,6 +404,17 @@ export default function SchedulePage() {
           onLessonsChange={loadData}
         />
       </div>
+
+      {showRuleWizard && (
+        <CreateRuleWizard
+          tutorSubjects={tutor?.subjects || []}
+          students={students.map(s => ({ id: s.id, name: s.name }))}
+          onClose={() => setShowRuleWizard(false)}
+          onSuccess={() => {
+            loadData();
+          }}
+        />
+      )}
 
       {showCreateLesson && (
         <div className={styles.modalOverlay} onClick={() => setShowCreateLesson(false)}>

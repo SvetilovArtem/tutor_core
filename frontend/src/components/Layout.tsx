@@ -5,6 +5,7 @@ import styles from './Layout.module.css';
 
 const navItems = [
   { to: '/', label: 'Дашборд', icon: 'dashboard' },
+  { to: '/profile', label: 'Мой профиль', icon: 'users' },
   { to: '/schedule', label: 'Расписание', icon: 'calendar' },
   { to: '/students', label: 'Ученики', icon: 'users' },
   { to: '/lessons', label: 'Уроки', icon: 'book' },

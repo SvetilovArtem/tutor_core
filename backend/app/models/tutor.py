@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Integer, String, Boolean, DateTime, JSON, ForeignKey
+from sqlalchemy import Integer, String, Boolean, DateTime, JSON, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.session import Base
@@ -8,6 +8,7 @@ from app.database.session import Base
 class Tutor(Base):
     __tablename__ = "tutors"
 
+    # Базовые данные
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     telegram_id: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=False, index=True)
@@ -16,9 +17,19 @@ class Tutor(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     subjects: Mapped[list] = mapped_column(JSON, default=list)
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Minsk")
+    currency: Mapped[str] = mapped_column(String(3), default="BYN")  # <-- НОВОЕ
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
+    # Лендинг (публичные данные)
+    slug: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True, index=True)
+    landing_headline: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    landing_bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    landing_theme: Mapped[str] = mapped_column(String(20), default="classic")
+    is_landing_published: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Связи
     settings: Mapped["TutorSettings"] = relationship(back_populates="tutor", uselist=False, cascade="all, delete-orphan")
 
 

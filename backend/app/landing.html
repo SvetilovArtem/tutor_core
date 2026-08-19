@@ -1,0 +1,1452 @@
+
+```html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Иван Петров — Репетитор по математике. Индивидуальный подход, современные методики, гарантия результата. Запишитесь на бесплатное пробное занятие.">
+    <title>Иван Петров — Репетитор по математике</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text: #111827;
+            --text-light: #6b7280;
+            --bg: #ffffff;
+            --bg-alt: #f9fafb;
+            --border: #e5e7eb;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --radius: 12px;
+            --radius-lg: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--bg);
+            overflow-x: hidden;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInLeft {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes fadeInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .animate-on-scroll {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .animate-on-scroll.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text);
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .nav-cta {
+            padding: 0.6rem 1.4rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white !important;
+            border-radius: 50px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .nav-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .hero {
+            margin-top: 72px;
+            min-height: calc(100vh - 72px);
+            padding: 4rem 2rem 6rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 200% 200%;
+            animation: gradient 15s ease infinite;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .hero-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            width: 100%;
+        }
+
+        .hero-content {
+            animation: fadeInLeft 1s ease;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.2rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50px;
+            color: white;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .hero-badge-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .hero h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 1.5rem;
+            font-weight: 300;
+        }
+
+        .hero-description {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: var(--radius);
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: var(--transition);
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--primary);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-3px);
+        }
+
+        .hero-image {
+            position: relative;
+            animation: fadeInRight 1s ease;
+        }
+
+        .hero-image-wrapper {
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .hero-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        section {
+            padding: 6rem 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .section-subtitle {
+            font-size: 1.15rem;
+            color: var(--text-light);
+            line-height: 1.7;
+        }
+
+        .problems {
+            background: var(--bg-alt);
+        }
+
+        .problems-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .problem-card {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .problem-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .problem-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(249, 115, 22, 0.1));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .problem-card h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .problem-card p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .approach-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .approach-content h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .approach-content p {
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+        }
+
+        .approach-principles {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .principle {
+            display: flex;
+            gap: 1rem;
+            padding: 1.2rem;
+            background: var(--bg-alt);
+            border-radius: var(--radius);
+            transition: var(--transition);
+        }
+
+        .principle:hover {
+            background: white;
+            box-shadow: var(--shadow);
+            transform: translateX(5px);
+        }
+
+        .principle-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .principle-content h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+        }
+
+        .principle-content p {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .approach-image img {
+            width: 100%;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .about-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .about-image img {
+            width: 100%;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .about-content h3 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .about-content p {
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+            line-height: 1.8;
+        }
+
+        .process-timeline {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .process-timeline::before {
+            content: '';
+            position: absolute;
+            left: 30px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--primary), var(--secondary));
+        }
+
+        .process-step {
+            position: relative;
+            margin-bottom: 2.5rem;
+            padding-left: 80px;
+        }
+
+        .process-number {
+            position: absolute;
+            left: 0;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+        }
+
+        .process-content {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .process-content h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .process-content p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .services {
+            background: var(--bg-alt);
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .service-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            border: 1px solid var(--border);
+        }
+
+        .service-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .service-icon {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .service-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .service-card > p {
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+        }
+
+        .service-features {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+
+        .service-features li {
+            padding: 0.5rem 0;
+            padding-left: 1.8rem;
+            position: relative;
+        }
+
+        .service-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        .service-price {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .service-price span {
+            font-size: 1rem;
+            color: var(--text-light);
+            font-weight: 400;
+        }
+
+        .guarantees-container {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05));
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+        }
+
+        .guarantees-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .guarantee-item {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .guarantee-icon {
+            width: 56px;
+            height: 56px;
+            background: white;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            flex-shrink: 0;
+            box-shadow: var(--shadow);
+        }
+
+        .guarantee-content h4 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .guarantee-content p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 2rem;
+        }
+
+        .testimonial-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        .testimonial-card::before {
+            content: '"';
+            font-family: 'Playfair Display', serif;
+            font-size: 6rem;
+            color: var(--primary);
+            opacity: 0.2;
+            position: absolute;
+            top: -10px;
+            left: 20px;
+        }
+
+        .testimonial-text {
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.7;
+            position: relative;
+            z-index: 1;
+            font-style: italic;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .author-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.3rem;
+        }
+
+        .author-info h4 {
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .author-info p {
+            color: var(--text-light);
+            font-size: 0.85rem;
+        }
+
+        .faq-list {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            background: white;
+            margin-bottom: 1rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .faq-question {
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1.05rem;
+        }
+
+        .faq-icon {
+            width: 24px;
+            height: 24px;
+            transition: transform 0.3s;
+        }
+
+        .faq-item.active .faq-icon {
+            transform: rotate(180deg);
+        }
+
+        .faq-answer {
+            padding: 0 2rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .faq-item.active .faq-answer {
+            padding: 0 2rem 1.5rem;
+            max-height: 500px;
+        }
+
+        .faq-answer p {
+            color: var(--text-light);
+            line-height: 1.7;
+        }
+
+        .steps {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .steps .section-title {
+            color: white;
+        }
+
+        .steps .section-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 2rem;
+        }
+
+        .step-card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .step-number {
+            width: 60px;
+            height: 60px;
+            background: white;
+            color: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin: 0 auto 1.2rem;
+        }
+
+        .step-card h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .step-card p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.95rem;
+        }
+
+        .contact {
+            background: var(--bg-alt);
+        }
+
+        .contact-form {
+            background: white;
+            padding: 3rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.9rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        footer {
+            background: var(--text);
+            color: white;
+            padding: 3rem 2rem 2rem;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-bottom {
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero-container,
+            .approach-grid,
+            .about-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <div class="logo">Иван Петров</div>
+            <ul class="nav-links">
+                <li><a href="#approach">Подход</a></li>
+                <li><a href="#process">Занятия</a></li>
+                <li><a href="#services">Услуги</a></li>
+                <li><a href="#testimonials">Отзывы</a></li>
+                <li><a href="#contact" class="nav-cta">Записаться</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="hero-badge-dot"></span>
+                    Запись открыта
+                </div>
+                <h1>Иван Петров</h1>
+                <p class="hero-subtitle">Репетитор по математике</p>
+                <p class="hero-description">
+                    Помогаю школьникам понимать математику, а не заучивать формулы. 
+                    Индивидуальный подход, современные методики, гарантия результата.
+                </p>
+                <div class="hero-buttons">
+                    <a href="#contact" class="btn btn-primary">Записаться на пробное занятие</a>
+                    <a href="#process" class="btn btn-secondary">Как проходят занятия</a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="hero-image-wrapper">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=700&fit=crop" alt="Иван Петров">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="problems">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">🎯 Знакомо?</span>
+                <h2 class="section-title">С какими проблемами обращаются</h2>
+            </div>
+            <div class="problems-grid">
+                <div class="problem-card animate-on-scroll">
+                    <div class="problem-icon">😰</div>
+                    <h3>Не успевает по программе</h3>
+                    <p>Оценки падают, домашние задания вызывают слёзы, уверенность тает.</p>
+                </div>
+                <div class="problem-card animate-on-scroll">
+                    <div class="problem-icon">📚</div>
+                    <h3>Нет мотивации</h3>
+                    <p>Ребёнок не понимает, зачем учиться, и теряет интерес к предмету.</p>
+                </div>
+                <div class="problem-card animate-on-scroll">
+                    <div class="problem-icon">🎯</div>
+                    <h3>Нужна подготовка к экзамену</h3>
+                    <p>ОГЭ или ЕГЭ уже близко, а уровень не позволяет рассчитывать на высокий балл.</p>
+                </div>
+                <div class="problem-card animate-on-scroll">
+                    <div class="problem-icon">🤔</div>
+                    <h3>Непонимание сложных тем</h3>
+                    <p>В классе не успели объяснить — и целые темы выпадают из понимания.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="approach" id="approach">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">💡 Мой подход</span>
+                <h2 class="section-title">Не просто репетитор, а наставник</h2>
+            </div>
+            <div class="approach-grid">
+                <div class="approach-content animate-on-scroll">
+                    <h3>Философия, которая работает</h3>
+                    <p>
+                        Моя задача — не просто "натаскать" на экзамен. Я помогаю ребёнку понять предмет, 
+                        полюбить процесс обучения и поверить в свои силы.
+                    </p>
+                    <div class="approach-principles">
+                        <div class="principle">
+                            <div class="principle-icon">🎯</div>
+                            <div class="principle-content">
+                                <h4>Индивидуальная программа</h4>
+                                <p>Никаких шаблонов. Программа под конкретного ребёнка.</p>
+                            </div>
+                        </div>
+                        <div class="principle">
+                            <div class="principle-icon">💬</div>
+                            <div class="principle-content">
+                                <h4>Доступное объяснение</h4>
+                                <p>Объясняю сложное простыми словами, с примерами из жизни.</p>
+                            </div>
+                        </div>
+                        <div class="principle">
+                            <div class="principle-icon">🌱</div>
+                            <div class="principle-content">
+                                <h4>Поддержка и мотивация</h4>
+                                <p>Создаю атмосферу, в которой не страшно ошибаться.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="approach-image animate-on-scroll">
+                    <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=900&fit=crop" alt="Процесс обучения">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="about" id="about">
+        <div class="container">
+            <div class="about-grid">
+                <div class="about-image animate-on-scroll">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=700&fit=crop" alt="Иван Петров">
+                </div>
+                <div class="about-content animate-on-scroll">
+                    <span class="section-tag">👋 Обо мне</span>
+                    <h3>Иван Петров</h3>
+                    <p>
+                        Окончил МГУ, механико-математический факультет. Преподаю математику более 12 лет. 
+                        За это время подготовил сотни учеников к ОГЭ и ЕГЭ.
+                    </p>
+                    <p>
+                        Мои ученики поступают в МГУ, МФТИ, ВШЭ и другие ведущие вузы. 
+                        Постоянно развиваюсь: изучаю новые методики, слежу за изменениями в программах.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="process" id="process">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">📋 Как проходит занятие</span>
+                <h2 class="section-title">Чёткая структура каждого урока</h2>
+            </div>
+            <div class="process-timeline">
+                <div class="process-step animate-on-scroll">
+                    <div class="process-number">1</div>
+                    <div class="process-content">
+                        <h3>🔍 Разминка и повторение</h3>
+                                                <p>Начинаем с небольшой разминки — повторяем пройденный материал. Это закрепляет знания и настраивает на работу.</p>
+                    </div>
+                </div>
+                <div class="process-step animate-on-scroll">
+                    <div class="process-number">2</div>
+                    <div class="process-content">
+                        <h3>📖 Новая тема</h3>
+                        <p>Объясняю новый материал простым языком, с примерами и аналогиями. Убеждаюсь, что всё понятно, прежде чем идти дальше.</p>
+                    </div>
+                </div>
+                <div class="process-step animate-on-scroll">
+                    <div class="process-number">3</div>
+                    <div class="process-content">
+                        <h3>✍️ Практика</h3>
+                        <p>Решаем задачи вместе: сначала я показываю, потом вы пробуете сами. Я помогаю, подсказываю, направляю.</p>
+                    </div>
+                </div>
+                <div class="process-step animate-on-scroll">
+                    <div class="process-number">4</div>
+                    <div class="process-content">
+                        <h3>💡 Разбор ошибок</h3>
+                        <p>Анализируем, где возникли сложности. Каждая ошибка — это возможность понять тему глубже, а не повод для расстройства.</p>
+                    </div>
+                </div>
+                <div class="process-step animate-on-scroll">
+                    <div class="process-number">5</div>
+                    <div class="process-content">
+                        <h3>📝 Итоги и домашнее задание</h3>
+                        <p>Подводим итоги занятия. Даю адекватное по объёму домашнее задание для закрепления и всегда его проверяю.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="services" id="services">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">💰 Услуги и цены</span>
+                <h2 class="section-title">Выберите подходящий формат</h2>
+                <p class="section-subtitle">Прозрачные цены без скрытых платежей. Первое занятие — бесплатно.</p>
+            </div>
+            <div class="services-grid">
+                <div class="service-card animate-on-scroll">
+                    <div class="service-icon">👤</div>
+                    <h3>Индивидуальное занятие</h3>
+                    <p>Персональная работа один на один. Максимум внимания, программа под ваши цели.</p>
+                    <ul class="service-features">
+                        <li>Индивидуальная программа</li>
+                        <li>Полный фокус на ученике</li>
+                        <li>Гибкий график и переносы</li>
+                        <li>Домашние задания с проверкой</li>
+                    </ul>
+                    <div class="service-price">2 500 ₽ <span>/ 60 минут</span></div>
+                </div>
+                <div class="service-card animate-on-scroll">
+                    <div class="service-icon">👥</div>
+                    <h3>Мини-группа</h3>
+                    <p>Занятия в небольшой группе 2-4 человека. Эффективно и экономично.</p>
+                    <ul class="service-features">
+                        <li>Группы по уровню подготовки</li>
+                        <li>Элементы здоровой конкуренции</li>
+                        <li>Развитие коммуникативных навыков</li>
+                        <li>Доступная стоимость</li>
+                    </ul>
+                    <div class="service-price">1 500 ₽ <span>/ 60 минут</span></div>
+                </div>
+                <div class="service-card animate-on-scroll">
+                    <div class="service-icon">🚀</div>
+                    <h3>Интенсивный курс</h3>
+                    <p>Ускоренная подготовка к экзамену. 3-4 занятия в неделю с максимальной отдачей.</p>
+                    <ul class="service-features">
+                        <li>Максимальная интенсивность</li>
+                        <li>Ежедневная поддержка в чате</li>
+                        <li>Пробные экзамены каждую неделю</li>
+                        <li>Приоритетная связь</li>
+                    </ul>
+                    <div class="service-price">20 000 ₽ <span>/ месяц</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="guarantees">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">🛡️ Мои гарантии</span>
+                <h2 class="section-title">Почему вам нечего терять</h2>
+            </div>
+            <div class="guarantees-container animate-on-scroll">
+                <div class="guarantees-grid">
+                    <div class="guarantee-item">
+                        <div class="guarantee-icon">🎁</div>
+                        <div class="guarantee-content">
+                            <h4>Бесплатное пробное занятие</h4>
+                            <p>Познакомимся, определим уровень, составим план. Без обязательств с вашей стороны.</p>
+                        </div>
+                    </div>
+                    <div class="guarantee-item">
+                        <div class="guarantee-icon">💯</div>
+                        <div class="guarantee-content">
+                            <h4>Возврат за первое занятие</h4>
+                            <p>Если после первого платного урока вы решите не продолжать — верну деньги без вопросов.</p>
+                        </div>
+                    </div>
+                    <div class="guarantee-item">
+                        <div class="guarantee-icon">🔄</div>
+                        <div class="guarantee-content">
+                            <h4>Бесплатные переносы</h4>
+                            <p>Предупредите за 24 часа — и мы спокойно перенесём занятие на удобное для вас время.</p>
+                        </div>
+                    </div>
+                    <div class="guarantee-item">
+                        <div class="guarantee-icon">💬</div>
+                        <div class="guarantee-content">
+                            <h4>Связь между занятиями</h4>
+                            <p>Всегда на связи в мессенджерах. Вопросы по домашнему заданию — отвечаю в течение дня.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="testimonials" id="testimonials">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">⭐ Отзывы</span>
+                <h2 class="section-title">Что говорят родители и ученики</h2>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card animate-on-scroll">
+                    <p class="testimonial-text">
+                        Благодаря Ивану Петровичу я сдала ЕГЭ по математике на 94 балла! Раньше боялась даже смотреть на профильную математику, а теперь учусь в ВШЭ. Спасибо за терпение!
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">АС</div>
+                        <div class="author-info">
+                            <h4>Анна Смирнова</h4>
+                            <p>Поступила в ВШЭ, 2023</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card animate-on-scroll">
+                    <p class="testimonial-text">
+                        Занимаемся с сыном уже второй год. Результат превзошел ожидания: с 60 до 89 баллов за год! Иван умеет найти подход к ребенку, объясняет понятно. Рекомендую!
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">МК</div>
+                        <div class="author-info">
+                            <h4>Мария Козлова</h4>
+                            <p>Мама ученика 11 класса</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card animate-on-scroll">
+                    <p class="testimonial-text">
+                        Готовился к вступительным в МФТИ. За 3 месяца интенсивных занятий подтянул математику с троечки до отличного уровня. Поступил на бюджет! Отдельное спасибо за лайфхаки.
+                    </p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar">ДВ</div>
+                        <div class="author-info">
+                            <h4>Дмитрий Волков</h4>
+                            <p>Поступил в МФТИ, 2024</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="faq" id="faq">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">❓ Вопросы и ответы</span>
+                <h2 class="section-title">Часто задаваемые вопросы</h2>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item animate-on-scroll">
+                    <div class="faq-question">
+                        Как проходит первое занятие?
+                        <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Первое занятие — диагностическое и бесплатное. Мы определяем текущий уровень, слабые места, обсуждаем цели и составляем план подготовки. Также вы сможете оценить мой подход.</p>
+                    </div>
+                </div>
+                <div class="faq-item animate-on-scroll">
+                    <div class="faq-question">
+                        Можно ли заниматься онлайн?
+                        <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Да, я провожу занятия как офлайн, так и онлайн. Для онлайн-занятий использую интерактивную доску и видеосвязь. Эффективность онлайн-занятий такая же, как и офлайн.</p>
+                    </div>
+                </div>
+                <div class="faq-item animate-on-scroll">
+                    <div class="faq-question">
+                        Что если я пропущу занятие?
+                        <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Предупредите меня минимум за 24 часа — занятие можно перенести без проблем. При отмене менее чем за сутки занятие считается проведенным и оплачивается.</p>
+                    </div>
+                </div>
+                <div class="faq-item animate-on-scroll">
+                    <div class="faq-question">
+                        Как часто нужно заниматься?
+                        <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Оптимально — 2 раза в неделю по 60-90 минут. Это позволяет поддерживать регулярность и давать время на выполнение домашних заданий. Перед экзаменами частоту можно увеличить.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="steps">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">🚀 Как начать</span>
+                <h2 class="section-title">4 простых шага до результата</h2>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card animate-on-scroll">
+                    <div class="step-number">1</div>
+                    <h3>Оставьте заявку</h3>
+                    <p>Заполните короткую форму ниже. Это займёт 1 минуту.</p>
+                </div>
+                <div class="step-card animate-on-scroll">
+                    <div class="step-number">2</div>
+                    <h3>Свяжемся с вами</h3>
+                    <p>В течение дня я позвоню или напишу, чтобы обсудить детали.</p>
+                </div>
+                <div class="step-card animate-on-scroll">
+                    <div class="step-number">3</div>
+                    <h3>Пробное занятие</h3>
+                    <p>Бесплатно познакомимся, определим уровень и составим план.</p>
+                </div>
+                <div class="step-card animate-on-scroll">
+                    <div class="step-number">4</div>
+                    <h3>Начинаем заниматься</h3>
+                    <p>Если всё устраивает — выбираем расписание и начинаем!</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="contact" id="contact">
+        <div class="container">
+            <div class="section-header animate-on-scroll">
+                <span class="section-tag">📝 Запись на занятие</span>
+                <h2 class="section-title">Оставьте заявку</h2>
+                <p class="section-subtitle">Заполните форму, и я свяжусь с вами в течение дня</p>
+            </div>
+            <form class="contact-form animate-on-scroll" id="contactForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name">Ваше имя *</label>
+                        <input type="text" id="name" name="name" required placeholder="Иван Иванов">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Телефон *</label>
+                        <input type="tel" id="phone" name="phone" required placeholder="+7 (___) ___-__-__">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" placeholder="example@mail.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="subject">Предмет</label>
+                        <select id="subject" name="subject">
+                            <option value="">Выберите предмет</option>
+                            <option value="math-ege">Математика (ЕГЭ)</option>
+                            <option value="math-oge">Математика (ОГЭ)</option>
+                            <option value="math-school">Школьная программа</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="message">Сообщение</label>
+                    <textarea id="message" name="message" rows="4" placeholder="Расскажите о целях, текущем уровне и удобном времени..."></textarea>
+                </div>
+                <button type="submit" class="submit-btn">Отправить заявку</button>
+                <p style="text-align: center; margin-top: 1rem; color: var(--text-light); font-size: 0.9rem;">
+                    Нажимая кнопку, вы соглашаетесь с обработкой персональных данных
+                </p>
+            </form>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-content">
+            <p style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Иван Петров</p>
+            <p style="color: rgba(255,255,255,0.7); margin-bottom: 2rem;">Репетитор по математике | Подготовка к ЕГЭ и ОГЭ</p>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Иван Петров. Все права защищены.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Анимация при скролле
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+
+        // FAQ Аккордеон
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', () => {
+                const item = question.parentElement;
+                const isActive = item.classList.contains('active');
+                document.querySelectorAll('.faq-item').forEach(faq => faq.classList.remove('active'));
+                if (!isActive) item.classList.add('active');
+            });
+        });
+
+        // Плавный скролл
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Маска телефона
+        const phoneInput = document.getElementById('phone');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', (e) => {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 0) {
+                    if (value[0] === '7' || value[0] === '8') value = value.substring(1);
+                    let formatted = '+7';
+                    if (value.length > 0) formatted += ' (' + value.substring(0, 3);
+                    if (value.length >= 3) formatted += ') ' + value.substring(3, 6);
+                    if (value.length >= 6) formatted += '-' + value.substring(6, 8);
+                    if (value.length >= 8) formatted += '-' + value.substring(8, 10);
+                    e.target.value = formatted;
+                }
+            });
+        }
+
+        // Отправка формы (заглушка)
+        document.getElementById('contactForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('.submit-btn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Отправляем...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                alert('✅ Спасибо за заявку! Я свяжусь с вами в ближайшее время.');
+                e.target.reset();
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

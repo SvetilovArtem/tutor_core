@@ -5,7 +5,11 @@ from sqlalchemy import select, or_
 from app.database.session import get_db
 from app.models.tutor import Tutor, TutorSettings
 from app.schemas.tutor import (
-    TutorRegisterRequest, TutorResponse, TokenResponse, PasswordLoginRequest,
+    TutorRegisterRequest,
+    TutorResponse,
+    TokenResponse,
+    PasswordLoginRequest,
+    TutorProfileUpdate,
 )
 from app.services.auth import create_access_token, get_current_tutor
 from app.services.password import hash_password, verify_password
@@ -15,17 +19,12 @@ router = APIRouter(prefix="/tutors", tags=["tutors"])
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register_tutor(payload: TutorRegisterRequest, db: AsyncSession = Depends(get_db)):
-    """
-    Регистрация репетитора.
-    Поддерживает: telegram_id, email+password, или оба сразу.
-    """
     if not payload.telegram_id and not payload.email:
         raise HTTPException(status_code=400, detail="Укажите telegram_id или email")
 
     if payload.email and not payload.password:
         raise HTTPException(status_code=400, detail="Для регистрации по email нужен пароль")
 
-    # Проверяем дубликаты
     conditions = []
     if payload.telegram_id:
         conditions.append(Tutor.telegram_id == payload.telegram_id)
@@ -41,7 +40,6 @@ async def register_tutor(payload: TutorRegisterRequest, db: AsyncSession = Depen
         token = create_access_token(existing.id)
         return TokenResponse(access_token=token, tutor=TutorResponse.model_validate(existing))
 
-    # Создаём нового
     tutor = Tutor(
         telegram_id=payload.telegram_id,
         email=payload.email.lower() if payload.email else None,
@@ -63,10 +61,7 @@ async def register_tutor(payload: TutorRegisterRequest, db: AsyncSession = Depen
 
 @router.post("/login", response_model=TokenResponse)
 async def password_login(payload: PasswordLoginRequest, db: AsyncSession = Depends(get_db)):
-    """Вход по email + пароль."""
-    result = await db.execute(
-        select(Tutor).where(Tutor.email == payload.email.lower())
-    )
+    result = await db.execute(select(Tutor).where(Tutor.email == payload.email.lower()))
     tutor = result.scalar_one_or_none()
 
     if not tutor or not tutor.password_hash:
@@ -84,4 +79,45 @@ async def password_login(payload: PasswordLoginRequest, db: AsyncSession = Depen
 
 @router.get("/me", response_model=TutorResponse)
 async def get_my_profile(tutor: Tutor = Depends(get_current_tutor)):
+    return TutorResponse.model_validate(tutor)
+
+
+@router.patch("/me", response_model=TutorResponse)
+async def update_my_profile(
+    payload: TutorProfileUpdate,
+    tutor: Tutor = Depends(get_current_tutor),
+    db: AsyncSession = Depends(get_db),
+):
+    update_data = payload.model_dump(exclude_unset=True)
+    settings_data = update_data.pop("settings", None)
+
+    if "slug" in update_data and update_data["slug"] != tutor.slug:
+        existing_tutor = await db.execute(
+            select(Tutor).where(
+                Tutor.slug == update_data["slug"],
+                Tutor.id != tutor.id
+            )
+        )
+        if existing_tutor.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="Этот адрес страницы (slug) уже занят другим репетитором"
+            )
+
+    for field, value in update_data.items():
+        setattr(tutor, field, value)
+
+    if settings_data:
+        if not tutor.settings:
+            db.add(TutorSettings(tutor_id=tutor.id))
+            await db.flush()
+            await db.refresh(tutor)
+
+        settings_update = settings_data.model_dump(exclude_unset=True)
+        for field, value in settings_update.items():
+            setattr(tutor.settings, field, value)
+
+    await db.commit()
+    await db.refresh(tutor)
+
     return TutorResponse.model_validate(tutor)

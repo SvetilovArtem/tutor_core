@@ -42,13 +42,20 @@ const getErrorMsg = (err: any) => {
   return typeof detail === 'string' ? detail : 'Ошибка валидации данных (422)';
 };
 
+const getEndOfMonth = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return format(new Date(year, month, lastDay), 'yyyy-MM-dd');
+};
+
 export default function CreateRuleWizard({ tutorSubjects, students, onClose, onSuccess }: CreateRuleWizardProps) {
   const [step, setStep] = useState(1);
   const [dayConfigs, setDayConfigs] = useState<DayConfig[]>(WEEKDAYS.map((_, i) => createDefaultDay(i)));
   const [subject, setSubject] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [dateFrom, setDateFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [dateTo, setDateTo] = useState<string | null>(null);
+  const [dateTo, setDateTo] = useState<string | null>(getEndOfMonth(new Date()));
   
   const [previewDays, setPreviewDays] = useState<DayPreviewWithConfig[]>([]);
   const [dayDecisions, setDayDecisions] = useState<Record<string, DayDecision>>({});

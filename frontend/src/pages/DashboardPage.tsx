@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { format, subDays, subWeeks, subMonths, subYears, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { format, subDays, subWeeks, subMonths, subYears, startOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -12,13 +12,6 @@ import styles from './DashboardPage.module.css';
 
 type IncomePeriod = 'day' | 'week' | 'month' | 'year';
 type WorkloadPeriod = 'week' | 'month' | 'all';
-
-const maxPeriods: Record<IncomePeriod, number> = {
-  day: 30,
-  week: 15 * 7,
-  month: 12 * 30,
-  year: 10 * 365,
-};
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 

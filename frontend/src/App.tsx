@@ -9,6 +9,7 @@ import PackagesPage from './pages/PackagesPage';
 import StudentsPage from './pages/StudentsPage';
 import CancellationsPage from './pages/CancellationsPage';
 import FinancePage from './pages/FinancePage';
+import ProfilePage from './pages/ProfilePage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('access_token');
@@ -29,6 +30,7 @@ export default function App() {
           }
         >
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/lessons" element={<LessonsPage />} />

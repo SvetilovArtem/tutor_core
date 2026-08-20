@@ -78,17 +78,19 @@ function WorkingHoursEditor({
   value: WorkingHours;
   onChange: (value: WorkingHours) => void;
 }) {
-  const toggleDay = (day: string) => {
+  const handleToggle = (day: string) => {
+    const current = value[day] || { enabled: false, start: '09:00', end: '18:00' };
     onChange({
       ...value,
-      [day]: { ...value[day], enabled: !value[day].enabled },
+      [day]: { ...current, enabled: !current.enabled },
     });
   };
 
-  const updateTime = (day: string, field: 'start' | 'end', time: string) => {
+  const handleTimeChange = (day: string, field: 'start' | 'end', time: string) => {
+    const current = value[day] || { enabled: true, start: '09:00', end: '18:00' };
     onChange({
       ...value,
-      [day]: { ...value[day], [field]: time },
+      [day]: { ...current, [field]: time },
     });
   };
 
@@ -105,7 +107,7 @@ function WorkingHoursEditor({
               <input
                 type="checkbox"
                 checked={dayData.enabled}
-                onChange={() => toggleDay(key)}
+                onChange={() => handleToggle(key)}
                 className={styles.hiddenCheckbox}
               />
               <span className={styles.workingHourName}>{name}</span>
@@ -117,14 +119,14 @@ function WorkingHoursEditor({
                   type="time"
                   className={styles.timeInput}
                   value={dayData.start}
-                  onChange={(e) => updateTime(key, 'start', e.target.value)}
+                  onChange={(e) => handleTimeChange(key, 'start', e.target.value)}
                 />
                 <span className={styles.timeSeparator}>—</span>
                 <input
                   type="time"
                   className={styles.timeInput}
                   value={dayData.end}
-                  onChange={(e) => updateTime(key, 'end', e.target.value)}
+                  onChange={(e) => handleTimeChange(key, 'end', e.target.value)}
                 />
               </div>
             )}
@@ -140,6 +142,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Tutor | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false); // <-- Новое состояние
   const [newSubject, setNewSubject] = useState('');
 
   useEffect(() => {
@@ -165,6 +168,7 @@ export default function ProfilePage() {
     try {
       await tutorsApi.updateMe(profile);
       toast.success('Профиль сохранён');
+      setIsDirty(false); // <-- Сбрасываем флаг после успешного сохранения
     } catch (err: any) {
       const detail = err.response?.data?.detail;
       const msg = Array.isArray(detail)
@@ -180,6 +184,7 @@ export default function ProfilePage() {
 
   const updateField = <K extends keyof Tutor>(field: K, value: Tutor[K]) => {
     setProfile((prev) => (prev ? { ...prev, [field]: value } : null));
+    setIsDirty(true); // <-- Помечаем форму как измененную
   };
 
   const addSubject = () => {
@@ -506,6 +511,7 @@ export default function ProfilePage() {
                     }
                   : null
               );
+              setIsDirty(true); // <-- Помечаем форму как измененную
             }}
           />
         </section>
@@ -687,7 +693,7 @@ export default function ProfilePage() {
         <section className={styles.card}>
           <div className={styles.cardHeader}>
             <div className={styles.cardIcon}>
-              <Icon name="help" size={20} />
+              <Icon name="help-circle" size={20} />
             </div>
             <div>
               <h2 className={styles.cardTitle}>Частые вопросы (FAQ)</h2>
@@ -766,7 +772,7 @@ export default function ProfilePage() {
         <section className={styles.card}>
           <div className={styles.cardHeader}>
             <div className={styles.cardIcon}>
-              <Icon name="bell" size={20} />
+              <Icon name="plug" size={20} /> {/* <-- Заменено с bell на plug */}
             </div>
             <div>
               <h2 className={styles.cardTitle}>Интеграции</h2>
@@ -798,7 +804,11 @@ export default function ProfilePage() {
           >
             Отмена
           </button>
-          <button type="submit" className={styles.submitBtn} disabled={saving}>
+          <button 
+            type="submit" 
+            className={styles.submitBtn} 
+            disabled={!isDirty || saving} // <-- Кнопка неактивна, если нет изменений или идет сохранение
+          >
             {saving ? 'Сохранение...' : 'Сохранить изменения'}
           </button>
         </div>

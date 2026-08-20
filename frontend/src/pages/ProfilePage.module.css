@@ -437,7 +437,7 @@
 }
 
 .workingHourRow.workingHourEnabled {
-  background: white;
+  background: rgba(99, 102, 241, 0.15);
   border-color: var(--color-primary, #6366f1);
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
 }
@@ -470,7 +470,7 @@
   font-size: 14px;
   font-family: inherit;
   color: var(--text-main, #111827);
-  background: white;
+  background: var(--bg-input, #ffffff);
   transition: all 0.2s;
 }
 
@@ -498,16 +498,16 @@
 }
 
 .listItem {
-  background: var(--bg-hover, #f9fafb);
-  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-card, #1f2937);
+  border: 1px solid var(--border-color, #374151);
   border-radius: 12px;
   padding: 16px;
-  transition: all 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .listItem:hover {
   border-color: var(--color-primary, #6366f1);
-  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .listItemHeader {
@@ -537,8 +537,26 @@
 }
 
 .listItemRemove:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.listItem .input,
+.listItem .textarea {
+  background: var(--bg-input, #111827);
+  border-color: var(--border-color, #374151);
+  color: var(--text-main, #f3f4f6);
+}
+
+.listItem .input:focus,
+.listItem .textarea:focus {
+  border-color: var(--color-primary, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.listItem .input::placeholder,
+.listItem .textarea::placeholder {
+  color: var(--text-muted, #9ca3af);
 }
 
 .addListBtn {

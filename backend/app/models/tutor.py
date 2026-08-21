@@ -11,13 +11,13 @@ class Tutor(Base):
     # Базовые данные
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    telegram_id: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=False, index=True)
+    telegram_id: Mapped[int | None] = mapped_column(Integer, unique=True, nullable=True, index=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     subjects: Mapped[list] = mapped_column(JSON, default=list)
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Minsk")
-    currency: Mapped[str] = mapped_column(String(3), default="BYN")  # <-- НОВОЕ
+    currency: Mapped[str] = mapped_column(String(3), default="BYN")  
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 

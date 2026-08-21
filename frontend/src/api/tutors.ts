@@ -56,4 +56,6 @@ export const tutorsApi = {
     api.post<TokenResponse>('/tutors/login', { email, password }),
   getMe: () => api.get<Tutor>('/tutors/me'),
   updateMe: (data: Partial<Tutor>) => api.patch<Tutor>('/tutors/me', data),
+  register: (data: { name: string; email: string; password: string; phone?: string; subjects?: string[]; timezone?: string }) =>
+  api.post<TokenResponse>('/tutors/register', data),
 };

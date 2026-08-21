@@ -10,6 +10,7 @@ import StudentsPage from './pages/StudentsPage';
 import CancellationsPage from './pages/CancellationsPage';
 import FinancePage from './pages/FinancePage';
 import ProfilePage from './pages/ProfilePage';
+import RegisterPage from './pages/RegisterPage';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('access_token');
@@ -22,6 +23,7 @@ export default function App() {
       <Toaster position="top-center" />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route
           element={
             <PrivateRoute>

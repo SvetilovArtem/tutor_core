@@ -1,0 +1,116 @@
+.container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: var(--bg-alt, #f9fafb);
+  }
+  
+  .card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 16px;
+    padding: 2.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+  }
+  
+  .header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  
+  .title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-main, #111827);
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .subtitle {
+    font-size: 15px;
+    color: var(--text-secondary, #6b7280);
+    margin: 0;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  
+  .formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main, #111827);
+  }
+  
+  .input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    font-size: 15px;
+    background: var(--bg-input, #ffffff);
+    color: var(--text-main, #111827);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+  }
+  
+  .input:focus {
+    border-color: var(--color-primary, #6366f1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+  
+  .submitBtn {
+    width: 100%;
+    padding: 0.875rem;
+    background: var(--color-primary, #6366f1);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 0.5rem;
+  }
+  
+  .submitBtn:hover:not(:disabled) {
+    background: var(--color-primary-hover, #4f46e5);
+  }
+  
+  .submitBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  .footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+  }
+  
+  .link {
+    color: var(--color-primary, #6366f1);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  
+  .link:hover {
+    color: var(--color-primary-hover, #4f46e5);
+    text-decoration: underline;
+  }

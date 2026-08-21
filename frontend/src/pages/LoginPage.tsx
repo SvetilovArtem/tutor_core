@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { tutorsApi } from '../api/tutors';
 import styles from './LoginPage.module.css';
@@ -52,6 +52,14 @@ export default function LoginPage() {
         <button type="submit" className={styles.btn} disabled={loading}>
           {loading ? 'Вход...' : 'Войти'}
         </button>
+        <div className={styles.footer}>
+        <p>
+          Нет аккаунта?{' '}
+          <Link to="/register" className={styles.link}>
+            Зарегистрироваться
+          </Link>
+        </p>
+      </div>
       </form>
     </div>
   );
